@@ -1,0 +1,2777 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Block Book — San Francisco storefront inventory</title>
+<meta name="description" content="A defensible, continuously updated storefront inventory for San Francisco. Sources, dates, and confidence — not a careless yes or no.">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.css">
+<style>
+:root{
+  --fog:#EDE4D4;
+  --cream:#F7F1E6;
+  --paper:#FFF8EE;
+  --ink:#1B1814;
+  --muted:#6B6256;
+  --faint:#94897A;
+  --line:#D4C8B6;
+  --orange:#E4572E;
+  --orange-deep:#C43B16;
+  --bay:#1E3A5F;
+  --bay-mid:#2F5583;
+  --brass:#B08A54;
+  --dusk:#5A4A7A;
+  --stone:#5C564C;
+  --civic:#9A4030;
+  --shadow:0 18px 50px rgba(27,24,20,.16);
+  --r:14px;
+}
+html[data-theme="night"]{
+  --fog:#0E1218;
+  --cream:#141A22;
+  --paper:#1B232E;
+  --ink:#F3EDE3;
+  --muted:#B7A894;
+  --faint:#8A7F70;
+  --line:#2C3644;
+  --orange:#F06A42;
+  --orange-deep:#FF8A62;
+  --bay:#7EA3CF;
+  --bay-mid:#9BB6D8;
+  --brass:#D4B07A;
+  --dusk:#C4B3E3;
+  --stone:#C9C0B4;
+  --civic:#E8A090;
+  --shadow:0 18px 50px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--fog); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",sans-serif;
+  font-feature-settings:"ss01","kern";
+  letter-spacing:-.011em;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  overflow:hidden;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--orange); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:10px 18px;
+  background:var(--cream);
+  border-bottom:1px solid var(--line);
+  z-index:5;
+}
+.brand{display:flex;align-items:baseline;gap:12px;flex:none}
+.brand b{
+  font-size:20px; font-weight:670; letter-spacing:.04em;
+  text-transform:uppercase; white-space:nowrap;
+}
+.brand em{font-style:normal;font-size:12px;color:var(--muted);white-space:nowrap;letter-spacing:.01em}
+.seg{
+  display:flex; padding:3px; gap:2px;
+  background:var(--fog); border:1px solid var(--line); border-radius:999px;
+}
+.seg button{
+  border:0; background:transparent; color:var(--muted);
+  padding:5px 9px; border-radius:999px; font-size:11px; font-weight:590;
+}
+.seg button.on{background:var(--ink); color:var(--cream)}
+.tools{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex:none}
+.nbr{
+  width:220px; max-width:36vw; margin:0 !important; flex:none;
+}
+.ghost{
+  border:1px solid var(--line); background:var(--paper); color:var(--ink);
+  border-radius:999px; padding:7px 12px; font-size:12px; font-weight:590;
+}
+.ghost:hover{border-color:var(--ink)}
+.ghost.mic.on{background:var(--orange); color:#fff8ee; border-color:var(--orange)}
+.heard{display:none; font-size:12px; color:var(--muted); margin:0 0 10px}
+.heard.on{display:block}
+
+.stage{
+  min-height:0;
+  display:grid;
+  grid-template-columns:300px minmax(0,1fr) 380px;
+}
+.rail,.docket{
+  background:var(--cream);
+  overflow:auto;
+  min-width:0;
+}
+.rail{border-right:1px solid var(--line); padding:14px 12px 28px}
+.docket{border-left:1px solid var(--line); padding:0}
+.mapwrap{position:relative; min-width:0; min-height:0; background:#c9c2b4}
+#map{position:absolute; inset:0}
+.maplibregl-ctrl-attrib{font-size:10px}
+.maplibregl-ctrl-attrib a{color:inherit}
+
+.float{
+  position:absolute; z-index:2; pointer-events:none;
+}
+.float > *{pointer-events:auto}
+.maptools{right:14px; bottom:16px; left:auto; top:auto}
+.maptools .seg{
+  background:color-mix(in srgb, var(--cream) 92%, transparent);
+  backdrop-filter:blur(12px);
+  box-shadow:var(--shadow);
+}
+.legend{
+  left:14px; bottom:16px;
+  background:color-mix(in srgb, var(--cream) 92%, transparent);
+  backdrop-filter:blur(12px);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:10px 12px;
+  box-shadow:var(--shadow);
+  max-width:200px;
+}
+.legend h3{margin:0 0 8px; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+#legend{display:flex; flex-direction:column; gap:1px}
+#legend > div{
+  display:flex; align-items:center; gap:8px;
+  padding:3px 0; font-size:12px; color:var(--ink); white-space:nowrap;
+}
+.sw{width:9px;height:9px;border-radius:99px;flex:none}
+.note{display:none}
+.load{
+  position:absolute; inset:0; z-index:3;
+  display:grid; place-items:center;
+  background:var(--fog);
+  transition:opacity .4s ease;
+}
+.load.hide{opacity:0;pointer-events:none}
+.load b{font-size:28px; letter-spacing:-.04em}
+.load i{display:block; margin-top:8px; font-style:normal; color:var(--muted)}
+
+.pin{
+  width:18px; height:18px; border-radius:99px;
+  border:2px solid #fff8ee; box-shadow:0 2px 8px rgba(0,0,0,.35);
+  cursor:pointer; transform:translateY(1px);
+}
+.pin.on{width:22px;height:22px; box-shadow:0 0 0 6px color-mix(in srgb, var(--orange) 35%, transparent)}
+.pin.civic{border-radius:3px; width:14px; height:14px; background:var(--civic)}
+
+.search{
+  width:100%; border:1px solid var(--line); background:var(--paper);
+  border-radius:10px; padding:9px 11px; margin-bottom:10px;
+}
+select.search{cursor:pointer; appearance:none; background-image:linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position:calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px); background-size:5px 5px, 5px 5px; background-repeat:no-repeat; padding-right:28px}
+.idea-lab{display:block; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:2px 0 5px}
+.idea{margin-bottom:10px}
+.streetbox{
+  background:var(--paper); border:1px solid var(--line);
+  border-radius:12px; padding:10px 11px; margin:0 0 12px;
+  font-size:12px; line-height:1.45; color:var(--muted);
+}
+.streetbox strong{display:block; color:var(--ink); font-size:11px; letter-spacing:.08em; text-transform:uppercase; margin-bottom:5px}
+.streetbox em{font-style:normal; color:var(--ink); font-weight:590}
+.play{
+  margin:14px 0; padding:14px 15px 12px; border-radius:14px;
+  background:var(--paper); border:1px solid var(--line);
+}
+.play h4{margin:0 0 8px; font-size:18px; letter-spacing:-.03em; font-weight:650}
+.bars{display:grid; gap:10px; margin:12px 0 2px}
+.barrow b{display:flex; justify-content:space-between; gap:10px; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:620}
+.barrow b i{font-style:normal; color:var(--ink); letter-spacing:0; text-transform:none; font-size:12px; font-weight:620}
+.daygrid{display:grid; grid-template-columns:78px 1fr; gap:7px 10px; margin:8px 0 2px; font-size:13px}
+.daygrid b{font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); padding-top:1px}
+.gaplist{margin:8px 0 0; padding-left:18px}
+.gaplist li{margin:0 0 5px; font-size:13px; line-height:1.4}
+.fit{display:inline-block; margin-top:5px; font-size:10px; letter-spacing:.06em; text-transform:uppercase; font-weight:650}
+.fit.good{color:var(--bay)}
+.fit.hard{color:var(--orange-deep)}
+.fit.poor{color:var(--faint)}
+.filters{display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px}
+#filters{display:none}
+.chip{
+  border:1px solid var(--line); background:transparent; color:var(--muted);
+  border-radius:999px; padding:4px 8px; font-size:11px; font-weight:560;
+}
+.chip.on{background:var(--ink); color:var(--cream); border-color:var(--ink)}
+.statrow{display:flex; gap:14px; margin:0 0 12px; padding:0 2px}
+.statrow b{display:block; font-size:20px; letter-spacing:-.03em; font-variant-numeric:tabular-nums}
+.statrow i{font-style:normal; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+
+.card{
+  width:100%; text-align:left; border:1px solid var(--line);
+  background:var(--paper); border-radius:12px; padding:10px 11px; margin-bottom:7px;
+}
+.card:hover{border-color:color-mix(in srgb, var(--ink) 35%, var(--line))}
+.card.sel{border-color:var(--orange); box-shadow:0 0 0 1px var(--orange)}
+.card .addr{font-weight:620; letter-spacing:-.02em}
+.card .meta{margin-top:3px; font-size:12px; color:var(--muted)}
+.badge{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+  font-weight:650; color:var(--ink);
+}
+.badge i{width:7px;height:7px;border-radius:99px}
+
+.file{
+  padding:18px 18px 32px;
+}
+.kicker{margin:0 0 6px; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted)}
+.file h2{margin:0; font-size:28px; line-height:1.1; letter-spacing:-.035em; font-weight:650}
+.sub{margin:8px 0 0; color:var(--muted); font-size:13px}
+.pills{display:flex; flex-wrap:wrap; gap:6px; margin:14px 0}
+.pill{
+  font-size:11px; letter-spacing:.04em; text-transform:uppercase; font-weight:620;
+  padding:5px 8px; border-radius:999px; background:var(--fog); border:1px solid var(--line);
+}
+a.pill{text-decoration:none; color:var(--ink)}
+a.pill:hover{border-color:var(--ink)}
+.meter{height:4px; background:var(--line); border-radius:99px; overflow:hidden; margin:8px 0 4px}
+.meter i{display:block; height:100%; background:var(--orange); width:0}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:14px 0}
+.kv{background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:10px 11px}
+.kv b{display:block; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:620}
+.kv span{display:block; margin-top:4px; font-size:14px; font-weight:590}
+.warn{
+  margin:14px 0; padding:12px 13px; border-radius:12px;
+  background:color-mix(in srgb, var(--brass) 14%, var(--paper));
+  border:1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
+  font-size:13px; line-height:1.45;
+}
+h3.sec{margin:18px 0 8px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.fold{
+  border-top:1px solid var(--line);
+  margin:0;
+}
+.fold summary{
+  cursor:pointer;
+  list-style:none;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:13px 0;
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--ink);
+  font-weight:640;
+}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary::after{
+  content:'';
+  width:7px; height:7px;
+  border-right:1.5px solid var(--muted);
+  border-bottom:1.5px solid var(--muted);
+  transform:rotate(45deg);
+  transition:transform .16s ease;
+  margin-left:8px;
+  flex:none;
+}
+.fold[open] summary::after{transform:rotate(-135deg); margin-top:3px}
+.fold-body{padding:0 0 14px}
+.fold .play{margin:0; padding:0; border:0; background:transparent}
+.fold .play .kicker{display:none}
+.file-next{margin-top:8px; padding-top:14px; border-top:1px solid var(--line)}
+.ev{border-top:1px solid var(--line); padding:9px 0}
+.ev b{display:block; font-size:13px}
+.ev span{display:block; font-size:12px; color:var(--muted); margin-top:2px}
+.actions{display:flex; flex-direction:column; gap:7px; margin-top:8px}
+.src{display:flex; flex-direction:column; gap:6px; margin:8px 0 0}
+.src a{
+  display:block; text-decoration:none; color:var(--ink);
+  border:1px solid var(--line); background:var(--paper);
+  border-radius:11px; padding:9px 11px; font-size:13px; font-weight:590;
+}
+.src a:hover{border-color:var(--ink)}
+.src a em{display:block; font-style:normal; font-size:11px; color:var(--muted); font-weight:500; margin-top:2px}
+.live{min-height:1.4em}
+.btn{
+  border:0; border-radius:11px; padding:11px 13px; font-weight:620;
+  background:var(--orange); color:#fff8ee; text-decoration:none; text-align:center;
+}
+.btn.alt{background:var(--ink); color:var(--cream)}
+.btn.line{background:transparent; color:var(--ink); border:1px solid var(--line)}
+textarea{
+  width:100%; min-height:72px; resize:vertical; margin-top:6px;
+  border:1px solid var(--line); background:var(--paper); border-radius:10px; padding:9px 10px;
+}
+.empty{padding:36px 22px; color:var(--muted)}
+.empty h2{margin:0 0 10px; color:var(--ink); font-size:26px; letter-spacing:-.035em}
+.empty p{margin:0 0 12px; line-height:1.5}
+.empty ul{margin:0; padding-left:18px}
+.empty li{margin:0 0 6px}
+
+.foot{
+  display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:8px 16px; background:var(--ink); color:var(--cream);
+  font-size:11px; letter-spacing:.02em;
+}
+.foot span{opacity:.78}
+
+.modal{
+  position:fixed; inset:0; z-index:20;
+  background:rgba(20,16,12,.55);
+  display:none; place-items:center; padding:24px;
+}
+.modal.on{display:grid}
+.sheet{
+  width:min(720px,100%); max-height:86vh; overflow:auto;
+  background:var(--cream); color:var(--ink);
+  border-radius:18px; padding:28px 28px 32px;
+  box-shadow:var(--shadow);
+}
+.sheet h2{margin:0 0 8px; font-size:28px; letter-spacing:-.03em}
+.sheet p{color:var(--muted); line-height:1.5}
+.sheet ol{color:var(--ink); padding-left:18px}
+.sheet li{margin:0 0 8px}
+
+@media (max-width:1100px){
+  .stage{grid-template-columns:260px 1fr}
+  .docket{display:none}
+  .docket.open{
+    display:block; position:absolute; right:0; top:0; bottom:0; width:min(400px,100%);
+    z-index:4; box-shadow:var(--shadow);
+  }
+  .top{flex-wrap:wrap}
+  .brand em{display:none}
+}
+@media (max-width:740px){
+  .stage{grid-template-columns:220px 1fr}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <b>Block Book</b>
+    <em>San Francisco storefronts</em>
+  </div>
+  <select class="search nbr" id="corridorSel" title="Neighborhood">
+    <option value="all" selected>All neighborhoods</option>
+    <option value="downtown">Downtown</option>
+    <option value="tenderloin">Tenderloin</option>
+    <option value="mission">The Mission</option>
+    <option value="fillmore">Fillmore</option>
+    <option value="bayview">Bayview</option>
+    <option value="sunset">Sunset</option>
+    <option value="richmond">Richmond</option>
+    <option value="outersunset">Outer Sunset</option>
+    <option value="outerrichmond">Outer Richmond</option>
+    <option value="ocean">Ocean / Parkmerced</option>
+    <option value="excelsior">Excelsior</option>
+  </select>
+  <div class="tools">
+    <button class="ghost" id="listBtn" hidden>Inventory</button>
+    <button class="ghost mic" id="micBtn" type="button" title="Chrome · say a use, a corridor, or an address">Talk</button>
+    <button class="ghost" id="howBtn">How we know</button>
+    <button class="ghost" id="pitchBtn">The problem</button>
+  </div>
+</header>
+
+<div class="stage">
+  <aside class="rail" id="rail">
+    <input class="search" id="q" placeholder="Address, block / lot, or APN">
+    <p class="heard" id="heard"></p>
+    <label class="idea-lab" for="idea">I want to open</label>
+    <select class="search idea" id="idea">
+      <option value="">What do you want to open?</option>
+      <option value="coffee">Coffee shop</option>
+      <option value="chai">Indian chai spot</option>
+      <option value="matcha">Japanese matcha + bookstore</option>
+      <option value="icecream">Ice cream café</option>
+      <option value="bookstore">Indie bookstore</option>
+      <option value="vintage">Vintage bookstore</option>
+      <option value="artisan">SF-made artisan shop + café</option>
+      <option value="record">Record store + coffee</option>
+      <option value="bookcafe">Bookstore + café</option>
+      <option value="custom">Something else — I’ll type it</option>
+    </select>
+    <input class="search idea" id="customIdea" placeholder="Dumpling shop, bike repair, wine bar…" hidden>
+    <div class="filters" id="exp" hidden></div>
+    <div id="streetRead"></div>
+    <div class="filters" id="filters"></div>
+    <div class="statrow" id="stats"></div>
+    <div id="list"></div>
+  </aside>
+
+  <main class="mapwrap">
+    <div id="map" role="application" aria-label="San Francisco map"></div>
+    <div class="load" id="load"><div><b>Loading the city</b><i>Real streets of San Francisco</i></div></div>
+    <div class="float legend">
+      <h3>What the pins mean</h3>
+      <div id="legend"></div>
+    </div>
+    <div class="float maptools">
+      <div class="seg" id="basemap" role="tablist">
+        <button class="on" data-b="day">Day</button>
+        <button data-b="night">Night</button>
+        <button data-b="aerial">Aerial</button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="docket" id="docket"></aside>
+</div>
+
+<footer class="foot">
+  <span>Pilot · not a census · streets are geography, not vacancy</span>
+</footer>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <p class="kicker">City &amp; County of San Francisco · method</p>
+    <h2>How Block Book decides</h2>
+    <p>Every incoming record is matched to an official address and block / lot. We then look for independent evidence. OpenStreetMap tells us where the street is. It does not tell us if the storefront is empty.</p>
+    <ol>
+      <li><b>Verified vacant</b> — owner, agency record, inspection, or recent field verification.</li>
+      <li><b>Likely vacant</b> — at least two recent independent signals.</li>
+      <li><b>Possible vacancy</b> — only one signal.</li>
+      <li><b>Actively marketed</b> — a listing exists; physical vacancy is not confirmed.</li>
+      <li><b>Reopened or occupied</b> — positive occupancy evidence.</li>
+      <li><b>Unknown</b> — not enough to say.</li>
+    </ol>
+    <p>Signals we reconcile: DBI registration or inspection, Commercial Vacancy Tax filing, active leasing listing, closed or inactive business registration, owner / OEWD / CBD confirmation, dated field observation, and permits that suggest construction, change of use, or reopening.</p>
+    <p>Interior condition — turnkey, modest work, or cold shell — cannot be read from public records alone. That gap is labeled, not guessed. Downtown large plates, Mission Street papered windows, and Excelsior grandfathered spaces fail for different reasons; the book keeps those workflows apart.</p>
+    <p>Two paths to a bay: pay a broker a fee, or do the research yourself. The DIY path is why people bounce. They Google the address, then PIM, then permits, then Yelp, then Maps, then Zillow, then a listing site — trying to reconstruct who was here and how to reach the owner. The records exist. They do not live in one place. Block Book is the aggregator — one case file, already searched to this lot.</p>
+    <p>If you need an answer today and you would rather pay: call a corridor broker, then walk into the Permit Center at 49 South Van Ness. The owner name is not posted online (California law). PIM has the parcel. The Recorder has the deed. A CBD or OSB intro is the free human path.</p>
+    <button class="btn alt" id="closeHow" style="margin-top:12px">Close</button>
+  </div>
+</div>
+
+<div class="modal" id="pitch">
+  <div class="sheet">
+    <p class="kicker">The problem · who · the idea · why · 90 days</p>
+    <h2>A papered window is not a case file.</h2>
+    <p><b>The problem.</b> Zoning is in PIM. The vacancy tax is on a map. Listings talk about the offices above. The history of the storefront is public — and scattered. Nobody has one file that says: is this bay empty, who was last here, and can a shop live on this sidewalk?</p>
+    <p><b>Who can use it.</b> Someone opening a shop. Someone helping them find a bay. City staff who already pull the same address by hand. We do not replace the broker or PIM. We start the file so they are not starting from Google.</p>
+    <p><b>The idea.</b> One case file per storefront: a graded vacancy claim, live city history already queried to this door, and a street read — spend, hours, and what the last tenant left. Interior stays unknown until someone walks it. This demo is a pilot, not a census.</p>
+    <p><b>Why it matters.</b> Today you pay a fee, wait in a line, or walk every dark window. If the file exists, the next shop gets a shortlist, history already pulled, and a read that maps cannot write.</p>
+    <p><b>The next 90 days.</b> One downtown corridor and one neighborhood corridor on real filings, with source badges. East Cut or Mid-Market, plus the Mission or Richmond. That inventory still does not exist in City Hall.</p>
+    <button class="btn alt" id="closePitch" style="margin-top:12px">Close</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.js"></script>
+<script>
+const STATUS = {
+  verified: { label:'Verified vacant', color:'#E4572E' },
+  likely:   { label:'Likely vacant', color:'#1E3A5F' },
+  possible: { label:'Possible vacancy', color:'#B08A54' },
+  marketed: { label:'Actively marketed', color:'#5A4A7A' },
+  occupied: { label:'Reopened or occupied', color:'#5C564C' },
+  unknown:  { label:'Unknown', color:'#94897A' }
+};
+
+const SITES = [
+  {
+    id:'901-market', corridor:'downtown', name:'901 Market Street',
+    hood:'Market Street / Mid-Market', cbd:'Downtown Community Benefit District',
+    lng:-122.4089, lat:37.7837, block:'3705', lot:'017', apn:'3705 017',
+    status:'verified', confidence:92, last:'Sep 8, 2026',
+    use:'Former formula retail · pharmacy', zoning:'C-3-G Downtown General',
+    sqft:'11,400', plate:'Large floor plate', condition:'unknown',
+    conditionNote:'Records cannot say if this is turnkey or a cold shell. A site visit or owner questionnaire is required.',
+    walk:96, transit:100, parking:'Fifth & Mission garage · 2 blocks',
+    rent:'Broker quote only · not in public record',
+    capital:'Large plate. Everyday operators bounce off the TI and the cube. This is a Vacant-to-Vibrant / multi-tenant conversation, not a first-time shop.',
+    next:'Call a downtown broker who already knows this ghost. Then pull permits at 49 South Van Ness before you dream a kitchen.',
+    programs:['Vacant to Vibrant','Downtown Business Fund (TI)','Permit SF'],
+    permits:[
+      {id:'BPA-2024-041188', what:'Interior demo inquiry · no job card issued', when:'Mar 2024'},
+      {id:'PPA-2023-012910', what:'No change-of-use filed', when:'—'}
+    ],
+    evidence:[
+      {src:'CBD field check', when:'Sep 8, 2026', note:'Papered windows, no night lighting, no staff. Dated photo on file.'},
+      {src:'Commercial Vacancy Tax filing', when:'FY 2025', note:'Parcel flagged in the vacant storefront filing set.'},
+      {src:'Closed business registration', when:'2023', note:'Pharmacy use abandoned. No successor certificate.'},
+      {src:'Active listing', when:'Aug 2026', note:'Ground-floor retail marketed. Listing ≠ confirmed empty interior.'}
+    ]
+  },
+  {
+    id:'865-market', corridor:'downtown', name:'865 Market Street',
+    hood:'Yerba Buena / SF Centre', cbd:'Yerba Buena CBD',
+    lng:-122.4069, lat:37.7844, block:'3705', lot:'049', apn:'3705 049',
+    status:'likely', confidence:78, last:'Sep 4, 2026',
+    use:'Inline mall pad · former apparel', zoning:'C-3-R Downtown Retail',
+    sqft:'4,200', plate:'Standard', condition:'unknown',
+    conditionNote:'Mall interiors hide condition. Public records are silent on ADA restroom and fire-life safety.',
+    walk:98, transit:100, parking:'Ellis-O’Farrell garage',
+    rent:'Asking not posted',
+    capital:'Inline TI is smaller than a ghost Walgreens, but mall rules and hours still scare first operators.',
+    next:'Match an operator who already knows centre traffic. Do not start with zoning — start with the landlord’s form lease.',
+    programs:['Vacant to Vibrant','SF Shines (if street-facing)','Shop & Dine SF'],
+    permits:[{id:'—', what:'No open change-of-use', when:'2026'}],
+    evidence:[
+      {src:'Leasing listing', when:'Sep 1, 2026', note:'Pad advertised as available now.'},
+      {src:'Field observation', when:'Sep 4, 2026', note:'Gate down on a Thursday at 2pm. One signal plus listing = likely, not verified.'}
+    ]
+  },
+  {
+    id:'1-market', corridor:'downtown', name:'1 Market Street',
+    hood:'Embarcadero', cbd:'East Cut CBD',
+    lng:-122.3945, lat:37.7937, block:'3713', lot:'006', apn:'3713 006',
+    status:'marketed', confidence:64, last:'Sep 6, 2026',
+    use:'Ground-floor café / retail', zoning:'C-3-O Downtown Office',
+    sqft:'2,850', plate:'Standard', condition:'unknown',
+    conditionNote:'Listing photos show a built kitchen. Treat as marketing, not an inspection.',
+    walk:97, transit:100, parking:'Embarcadero Center garage',
+    rent:'On request',
+    capital:'If the kitchen is real, capital drops. Confirm with a walk-through before you count it as turnkey.',
+    next:'Listing exists. Physical vacancy is not confirmed. Call the listing broker, then verify on foot.',
+    programs:['East Cut activation partners','SF Live','Shop & Dine SF'],
+    permits:[{id:'BPA-2025-008441', what:'Minor HVAC · not a change of use', when:'Nov 2025'}],
+    evidence:[
+      {src:'Active leasing listing', when:'Sep 6, 2026', note:'Only one independent signal. Status stops at actively marketed.'}
+    ]
+  },
+  {
+    id:'101-spear', corridor:'downtown', name:'101 Spear Street',
+    hood:'East Cut / Rincon', cbd:'East Cut CBD',
+    lng:-122.3936, lat:37.7930, block:'3741', lot:'031', apn:'3741 031',
+    status:'verified', confidence:88, last:'Sep 10, 2026',
+    use:'Former café', zoning:'C-3-O',
+    sqft:'1,760', plate:'Small', condition:'modest',
+    conditionNote:'Owner confirmed grease interceptor remains. Not a cold shell. Still needs a health-permit path.',
+    walk:95, transit:99, parking:'Gap garage / meters on Spear',
+    rent:'Owner will discuss popup rent',
+    capital:'Right-sized for Vacant to Vibrant. Insurance and a short-form lease are the blockers, not the cube.',
+    next:'This is an East Cut conversation. CBD already confirmed. Pair with SF New Deal before you reinvent outreach.',
+    programs:['Vacant to Vibrant','East Cut CBD','Storefront Opportunity Grant'],
+    permits:[{id:'HSA-2022-1190', what:'Prior food-use still on the card', when:'2022'}],
+    evidence:[
+      {src:'East Cut CBD confirmation', when:'Sep 10, 2026', note:'Owner and CBD both say vacant. This is verified.'},
+      {src:'Owner questionnaire', when:'Aug 28, 2026', note:'Willing to talk popup. Interior described as “needs paint, equipment stays.”'},
+      {src:'Field observation', when:'Sep 3, 2026', note:'Dated photo, papered glass, no A-frame.'}
+    ]
+  },
+  {
+    id:'550-howard', corridor:'downtown', name:'550 Howard Street',
+    hood:'East Cut / Transbay', cbd:'East Cut CBD',
+    lng:-122.3968, lat:37.7876, block:'3721', lot:'008', apn:'3721 008',
+    status:'possible', confidence:41, last:'Aug 22, 2026',
+    use:'Ground-floor retail under office', zoning:'C-3-O (SD)',
+    sqft:'3,100', plate:'Standard', condition:'unknown',
+    conditionNote:'Unknown. One dark window is not a case file.',
+    walk:94, transit:99, parking:'Moscone North',
+    rent:'Unknown',
+    capital:'Do not price TI off a maybe.',
+    next:'One signal only. Call a broker who works Howard before you brief an operator.',
+    programs:['East Cut CBD','Permit SF'],
+    permits:[],
+    evidence:[
+      {src:'Field observation', when:'Aug 22, 2026', note:'Lights off on a weekday lunch. No listing, no tax flag, no owner confirm.'}
+    ]
+  },
+  {
+    id:'250-4th', corridor:'downtown', name:'250 4th Street',
+    hood:'Yerba Buena', cbd:'Yerba Buena CBD',
+    lng:-122.4018, lat:37.7828, block:'3733', lot:'065', apn:'3733 065',
+    status:'likely', confidence:71, last:'Sep 2, 2026',
+    use:'Former gallery / retail', zoning:'C-3-R',
+    sqft:'2,200', plate:'Standard', condition:'unknown',
+    conditionNote:'Culture use may still be the legal use. Confirm before you assume restaurant.',
+    walk:96, transit:100, parking:'Moscone / 5th & Mission',
+    rent:'Unknown',
+    capital:'If use stays retail/art, capital is paint and insurance. A café resets the permit clock.',
+    next:'Pull the Property Information Map for last legal use. Then talk Yerba Buena CBD.',
+    programs:['SF Shines','Vacant to Vibrant','Shop & Dine SF'],
+    permits:[{id:'ENF-2024-331', what:'Signage complaint · closed', when:'2024'}],
+    evidence:[
+      {src:'Inactive business registration', when:'2025', note:'Gallery entity lapsed.'},
+      {src:'Field observation', when:'Sep 2, 2026', note:'Brown paper, no hours posted.'}
+    ]
+  },
+  {
+    id:'44-montgomery', corridor:'downtown', name:'44 Montgomery Street',
+    hood:'Financial District', cbd:'Downtown CBD',
+    lng:-122.4019, lat:37.7895, block:'0292', lot:'009', apn:'0292 009',
+    status:'occupied', confidence:90, last:'Sep 9, 2026',
+    use:'Café · reopened 2026', zoning:'C-3-O',
+    sqft:'1,240', plate:'Small', condition:'turnkey',
+    conditionNote:'Operating ground-floor café. Office listings talk about the tower. This pin is the sidewalk bay.',
+    walk:99, transit:100, parking:'Sutter-Stockton',
+    rent:'n/a',
+    capital:'None — this is the control case.',
+    next:'Leave it alone. Use it as proof the inventory can say occupied.',
+    programs:[],
+    permits:[{id:'HSA-2026-0441', what:'Health permit active', when:'2026'}],
+    evidence:[
+      {src:'Active business registration', when:'2026', note:'Certificate current.'},
+      {src:'Field observation', when:'Sep 9, 2026', note:'Line at 8:40am. Last checked date on the pin.'}
+    ]
+  },
+  {
+    id:'50-fremont', corridor:'downtown', name:'50 Fremont Street',
+    hood:'South of Market / East Cut', cbd:'East Cut CBD',
+    lng:-122.3972, lat:37.7907, block:'3709', lot:'019', apn:'3709 019',
+    status:'unknown', confidence:18, last:'Jul 12, 2026',
+    use:'Lobby retail · unclear', zoning:'C-3-O',
+    sqft:'—', plate:'Unknown', condition:'unknown',
+    conditionNote:'Unknown is a valid status. We will not dress this up.',
+    walk:95, transit:99, parking:'Building garage',
+    rent:'Unknown',
+    capital:'Unknown',
+    next:'Not enough to act. A broker call is cheaper than a wrong operator pitch.',
+    programs:['East Cut CBD'],
+    permits:[],
+    evidence:[
+      {src:'Assessor record only', when:'Jul 12, 2026', note:'Parcel exists. No listing, no tax flag, no field date this quarter.'}
+    ]
+  },
+  {
+    id:'4555-mission', corridor:'excelsior', name:'4555 Mission Street',
+    hood:'Excelsior', cbd:'Excelsior Action',
+    lng:-122.4346, lat:37.7256, block:'6272', lot:'012', apn:'6272 012',
+    status:'likely', confidence:76, last:'Sep 7, 2026',
+    use:'Former neighborhood retail · decades in place', zoning:'NCD — Excelsior Outer Mission',
+    sqft:'1,480', plate:'Small', condition:'unknown',
+    conditionNote:'Neighborhood risk is not the cube. It is the grandfather. New tenant likely loses the old code deal: ADA, fire, electrical.',
+    walk:82, transit:78, parking:'Street + lot on Ocean',
+    rent:'Owner-talk, not listed',
+    capital:'Assume a code-upgrade bill before you assume rent. This is the Excelsior problem OSB named.',
+    next:'Zoning first, then Permit SF, then a neighborhood broker — not a downtown plate specialist.',
+    programs:['Storefront Opportunity Grant','ADA Access grant','SF Shines','Office of Small Business leasing'],
+    permits:[{id:'—', what:'No permit in 20+ years · that is the tell', when:'—'}],
+    evidence:[
+      {src:'Closed business registration', when:'2024', note:'Long-run family retail lapsed.'},
+      {src:'Field observation', when:'Sep 7, 2026', note:'Security gate down, faded hours, mail slot stuffed.'}
+    ]
+  },
+  {
+    id:'4811-mission', corridor:'excelsior', name:'4811 Mission Street',
+    hood:'Excelsior', cbd:'Excelsior Action',
+    lng:-122.4367, lat:37.7212, block:'6273', lot:'014', apn:'6273 014',
+    status:'verified', confidence:91, last:'Sep 11, 2026',
+    use:'Former services / storefront', zoning:'NCD — Excelsior Outer Mission',
+    sqft:'1,120', plate:'Small', condition:'modest',
+    conditionNote:'Owner walked the space with a neighbor in August. Not a cold shell. Bathrooms are the ADA question.',
+    walk:80, transit:76, parking:'Street',
+    rent:'Owner will consider below-ask for the right use',
+    capital:'Storefront Opportunity Grant is sized for this, not for a downtown Walgreens.',
+    next:'OSB leasing list + neighborhood broker. Then Permit Center if the use changes.',
+    programs:['Storefront Opportunity Grant','SF Shines','ADA Access grant','Legacy Business (if successor)'],
+    permits:[],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 11, 2026', note:'Owner said vacant and wants a local operator. Verified.'},
+      {src:'Field observation', when:'Sep 5, 2026', note:'Dated photo.'},
+      {src:'No active listing', when:'Sep 2026', note:'Absence of a listing is not evidence of occupancy.'}
+    ]
+  },
+  {
+    id:'4700-mission', corridor:'excelsior', name:'4700 Mission Street',
+    hood:'Excelsior', cbd:'Excelsior Action',
+    lng:-122.4356, lat:37.7232, block:'6272', lot:'041', apn:'6272 041',
+    status:'possible', confidence:38, last:'Aug 30, 2026',
+    use:'Unclear · possibly storage', zoning:'NCD',
+    sqft:'960', plate:'Small', condition:'unknown',
+    conditionNote:'One dark window on a corridor is how rumors start. We stop at possible.',
+    walk:81, transit:77, parking:'Street',
+    rent:'Unknown',
+    capital:'Unknown',
+    next:'Ask a corridor broker. If they shrug, it may be owner-occupied storage.',
+    programs:['Office of Small Business'],
+    permits:[],
+    evidence:[
+      {src:'Field observation', when:'Aug 30, 2026', note:'Lights off at 3pm Saturday. No other signal.'}
+    ]
+  },
+  {
+    id:'4520-mission', corridor:'excelsior', name:'4520 Mission Street',
+    hood:'Excelsior', cbd:'Excelsior Action',
+    lng:-122.4341, lat:37.7264, block:'6271', lot:'022', apn:'6271 022',
+    status:'marketed', confidence:60, last:'Sep 3, 2026',
+    use:'Retail / food possible', zoning:'NCD',
+    sqft:'1,330', plate:'Small', condition:'unknown',
+    conditionNote:'Listing says “vanilla box.” That is a brochure word, not an inspection.',
+    walk:83, transit:79, parking:'Street',
+    rent:'Posted as negotiable',
+    capital:'If food is the dream, budget the grease interceptor before the paint.',
+    next:'Listing broker first. Then PIM for last legal use. Then Permit SF if the use changes.',
+    programs:['Storefront Opportunity Grant','Permit SF','OSB leasing'],
+    permits:[],
+    evidence:[
+      {src:'Active leasing listing', when:'Sep 3, 2026', note:'Single signal. Marketed, not verified vacant.'}
+    ]
+  },
+  {
+    id:'4400-mission', corridor:'excelsior', name:'4400 Mission Street',
+    hood:'Excelsior', cbd:'Excelsior Action',
+    lng:-122.4329, lat:37.7286, block:'6269', lot:'018', apn:'6269 018',
+    status:'occupied', confidence:86, last:'Sep 8, 2026',
+    use:'Neighborhood retail · open', zoning:'NCD',
+    sqft:'1,050', plate:'Small', condition:'turnkey',
+    conditionNote:'Occupied. The corridor is not a graveyard and the book should not look like one.',
+    walk:84, transit:80, parking:'Street',
+    rent:'n/a',
+    capital:'n/a',
+    next:'Leave it. Point new operators at 4811 and 4555 instead.',
+    programs:['Shop & Dine SF'],
+    permits:[],
+    evidence:[
+      {src:'Field observation', when:'Sep 8, 2026', note:'Open sign, customers.'},
+      {src:'Active business registration', when:'2026', note:'Current.'}
+    ]
+  },
+  {
+    id:'4900-mission', corridor:'excelsior', name:'4900 Mission Street',
+    hood:'Excelsior / Crocker-Amazon', cbd:'Excelsior Action',
+    lng:-122.4379, lat:37.7194, block:'6274', lot:'001', apn:'6274 001',
+    status:'verified', confidence:87, last:'Sep 6, 2026',
+    use:'Former long-run storefront', zoning:'NCD',
+    sqft:'2,040', plate:'Standard', condition:'unknown',
+    conditionNote:'Decades in one family. New tenant almost certainly buys a code upgrade. That is the capital gap.',
+    walk:74, transit:72, parking:'Street + Geneva lots',
+    rent:'Estate / family ownership · slow',
+    capital:'This is why neighborhood vacancies linger: not a write-off, a rehab bill and a tired owner.',
+    next:'Funded broker on the corridor, then an honest TI range, then Storefront Opportunity Grant.',
+    programs:['Storefront Opportunity Grant','ADA Access grant','OEWD corridor broker support'],
+    permits:[{id:'—', what:'No modern permit trail', when:'pre-2005'}],
+    evidence:[
+      {src:'Owner / estate confirmation', when:'Sep 6, 2026', note:'Family confirmed empty. Verified.'},
+      {src:'Vacancy tax filing', when:'FY 2025', note:'Filed.'},
+      {src:'Field observation', when:'Aug 29, 2026', note:'Dated photo, paint peel, no meter spin.'}
+    ]
+  },
+  {
+    id:'2080-mission', corridor:'mission', name:'2080 Mission Street',
+    hood:'The Mission · 16th–17th', cbd:'Mission Street CBD',
+    lng:-122.4195, lat:37.7642, block:'3570', lot:'018', apn:'3570 018',
+    status:'likely', confidence:74, last:'Sep 9, 2026',
+    use:'Former taquería / retail', zoning:'Mission Street NCT',
+    sqft:'1,620', plate:'Small', condition:'unknown',
+    conditionNote:'BART-adjacent. Foot traffic is not the missing piece. The space still sits papered.',
+    walk:97, transit:100, parking:'16th & Mission garage · street scarce',
+    rent:'Broker chatter only',
+    capital:'Kitchen hood may still be there. If it is gone, this becomes a capital problem on a corridor that looks busy from the sidewalk.',
+    next:'This is why the Mission belongs in the book: a living street with dark bays. Call a Mission Street broker, then PIM for last legal food use.',
+    programs:['Mission Loteria / Shop & Dine SF','Storefront Opportunity Grant','Permit SF'],
+    permits:[{id:'HSA-2019-2210', what:'Prior food-use · successor never filed', when:'2019'}],
+    evidence:[
+      {src:'Field observation', when:'Sep 9, 2026', note:'Brown paper, no hours, 16th Street crowd walking past.'},
+      {src:'Closed business registration', when:'2024', note:'Food-use certificate lapsed. No new occupant on file.'}
+    ]
+  },
+  {
+    id:'2234-mission', corridor:'mission', name:'2234 Mission Street',
+    hood:'The Mission · 18th', cbd:'Mission Street CBD',
+    lng:-122.4194, lat:37.7616, block:'3593', lot:'006', apn:'3593 006',
+    status:'verified', confidence:90, last:'Sep 11, 2026',
+    use:'Former apparel / variety', zoning:'Mission Street NCT',
+    sqft:'2,180', plate:'Standard', condition:'unknown',
+    conditionNote:'Owner confirmed empty. Interior photos were refused. Treat condition as unknown.',
+    walk:96, transit:94, parking:'Street · 18th Street garage',
+    rent:'Owner will talk',
+    capital:'Not a downtown plate. Still a rehab if the last tenant took the electrical with them.',
+    next:'Calle 24 / Mission Street CBD already know this bay. Do not cold-call the owner without them.',
+    programs:['Mission Street CBD','Storefront Opportunity Grant','SF Shines'],
+    permits:[],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 11, 2026', note:'Owner said vacant since early 2025. Verified.'},
+      {src:'Vacancy tax filing', when:'FY 2025', note:'Filed on this block/lot.'},
+      {src:'Field observation', when:'Sep 6, 2026', note:'Dated photo, papered glass, mail piled at the gate.'}
+    ]
+  },
+  {
+    id:'2372-mission', corridor:'mission', name:'2372 Mission Street',
+    hood:'The Mission · 19th–20th', cbd:'Mission Street CBD',
+    lng:-122.4193, lat:37.7595, block:'3594', lot:'022', apn:'3594 022',
+    status:'verified', confidence:86, last:'Sep 10, 2026',
+    use:'Former services / storefront church overflow', zoning:'Mission Street NCT',
+    sqft:'1,340', plate:'Small', condition:'modest',
+    conditionNote:'CBD walk-through: floor and glass intact. Bathrooms are the ADA question.',
+    walk:95, transit:92, parking:'Street',
+    rent:'Below-ask if the use stays neighborhood-serving',
+    capital:'Modest work, not a cold shell. Formula-retail CU is the delay if a chain wants in.',
+    next:'Keep it local. A conditional-use fight for formula retail is how this bay stays dark another year.',
+    programs:['Storefront Opportunity Grant','SF Shines','Office of Small Business leasing'],
+    permits:[{id:'ENF-2025-118', what:'Signage left from last tenant · closed', when:'2025'}],
+    evidence:[
+      {src:'Mission Street CBD confirmation', when:'Sep 10, 2026', note:'Staff walked it. Vacant. Verified.'},
+      {src:'Field observation', when:'Sep 4, 2026', note:'Papered, no night lighting.'}
+    ]
+  },
+  {
+    id:'2489-mission', corridor:'mission', name:'2489 Mission Street',
+    hood:'The Mission · 21st', cbd:'Mission Street CBD',
+    lng:-122.4192, lat:37.7575, block:'3616', lot:'011', apn:'3616 011',
+    status:'possible', confidence:40, last:'Aug 31, 2026',
+    use:'Unclear · maybe storage behind a retail face', zoning:'Mission Street NCT',
+    sqft:'980', plate:'Small', condition:'unknown',
+    conditionNote:'One dark bay on Mission is not a file. We stop at possible.',
+    walk:94, transit:91, parking:'Street',
+    rent:'Unknown',
+    capital:'Unknown',
+    next:'Ask the corridor broker before you brief an operator. This may be owner storage.',
+    programs:['Mission Street CBD'],
+    permits:[],
+    evidence:[
+      {src:'Field observation', when:'Aug 31, 2026', note:'Gate down on a Saturday afternoon. No listing, no tax flag.'}
+    ]
+  },
+  {
+    id:'2648-mission', corridor:'mission', name:'2648 Mission Street',
+    hood:'The Mission · 22nd–23rd', cbd:'Calle 24 Latino Cultural District',
+    lng:-122.4190, lat:37.7548, block:'3637', lot:'004', apn:'3637 004',
+    status:'likely', confidence:79, last:'Sep 8, 2026',
+    use:'Former restaurant', zoning:'Mission Street NCT',
+    sqft:'1,890', plate:'Standard', condition:'unknown',
+    conditionNote:'Grease interceptor and Type I hood are the whole question. Records do not answer it.',
+    walk:93, transit:90, parking:'Street · 24th BART two blocks',
+    rent:'Listed then pulled',
+    capital:'If the hood is gone, this is a six-figure kitchen on a corridor that already has restaurants. If it stays, a successor can move faster.',
+    next:'PIM for last legal food use, then a Mission restaurant broker — not a downtown plate specialist.',
+    programs:['Permit SF','Storefront Opportunity Grant','Calle 24'],
+    permits:[{id:'HSA-2018-4401', what:'Food-use abandoned · no change-of-use out', when:'2018'}],
+    evidence:[
+      {src:'Inactive business registration', when:'2023', note:'Restaurant entity dissolved.'},
+      {src:'Field observation', when:'Sep 8, 2026', note:'Papered windows, vent cap still on the roof. Hood unknown.'}
+    ]
+  },
+  {
+    id:'2779-mission', corridor:'mission', name:'2779 Mission Street',
+    hood:'The Mission · 24th', cbd:'Calle 24 Latino Cultural District',
+    lng:-122.4188, lat:37.7528, block:'3641', lot:'019', apn:'3641 019',
+    status:'marketed', confidence:62, last:'Sep 5, 2026',
+    use:'Retail / food possible', zoning:'Mission Street NCT',
+    sqft:'1,510', plate:'Small', condition:'unknown',
+    conditionNote:'Listing says vanilla box. Brochure word. Not an inspection.',
+    walk:94, transit:93, parking:'24th Street garage',
+    rent:'Posted, then “call for details”',
+    capital:'24th Street rent and a build-out is why first-time operators bounce even when the block is full of people.',
+    next:'Listing broker first. Then PIM. Then Calle 24 if the use is neighborhood-serving.',
+    programs:['Calle 24','Shop & Dine SF','Permit SF'],
+    permits:[],
+    evidence:[
+      {src:'Active leasing listing', when:'Sep 5, 2026', note:'Single signal. Marketed, not verified vacant.'}
+    ]
+  },
+  {
+    id:'1198-valencia', corridor:'mission', name:'1198 Valencia Street',
+    hood:'The Mission · Valencia & 24th', cbd:'Calle 24 Latino Cultural District',
+    lng:-122.4210, lat:37.7540, block:'3642', lot:'001', apn:'3642 001',
+    status:'occupied', confidence:88, last:'Sep 10, 2026',
+    use:'Neighborhood retail · open', zoning:'Valencia Street NCT',
+    sqft:'1,080', plate:'Small', condition:'turnkey',
+    conditionNote:'Occupied. The Mission is not empty. The book has to show the full street, or the vacancy story turns into a smear.',
+    walk:96, transit:92, parking:'Street',
+    rent:'n/a',
+    capital:'n/a',
+    next:'Leave it. Point operators at 2234 and 2372 Mission instead.',
+    programs:['Shop & Dine SF','Mission Loteria'],
+    permits:[],
+    evidence:[
+      {src:'Field observation', when:'Sep 10, 2026', note:'Open, customers on Valencia.'},
+      {src:'Active business registration', when:'2026', note:'Current.'}
+    ]
+  },
+  {
+    id:'140-turk', corridor:'tenderloin', name:'140 Turk Street',
+    hood:'Tenderloin', cbd:'TLCBD',
+    lng:-122.4140, lat:37.7832, block:'0334', lot:'012', apn:'0334 012',
+    status:'verified', confidence:89, last:'Sep 10, 2026',
+    use:'Former liquor / corner retail', zoning:'RC-4',
+    sqft:'1,240', plate:'Small', condition:'unknown',
+    conditionNote:'TLCBD counts this as vacant. Condition is still a site visit.',
+    walk:98, transit:100, parking:'Garage on Eddy',
+    rent:'Owner cautious',
+    capital:'Insurance and perceived safety, not the cube, are what bounce operators.',
+    next:'This is a Tenderloin count problem — 150+ dark bays — not a missing listing. Talk TLCBD before you pitch a tenant.',
+    programs:['Vacant to Vibrant','TLCBD','SF Shines'],
+    permits:[],
+    evidence:[
+      {src:'TLCBD field check', when:'Sep 10, 2026', note:'Papered, no night light. Verified vacant.'},
+      {src:'Vacancy tax filing', when:'FY 2025', note:'Filed.'}
+    ]
+  },
+  {
+    id:'249-eddy', corridor:'tenderloin', name:'249 Eddy Street',
+    hood:'Tenderloin', cbd:'TLCBD',
+    lng:-122.4125, lat:37.7841, block:'0335', lot:'008', apn:'0335 008',
+    status:'likely', confidence:77, last:'Sep 8, 2026',
+    use:'Former take-out', zoning:'RC-4',
+    sqft:'860', plate:'Small', condition:'unknown',
+    conditionNote:'Hood status unknown. Do not sell this as turnkey.',
+    walk:98, transit:100, parking:'Street scarce',
+    rent:'Unknown',
+    capital:'Small plate. The bill is grease, security, and insurance.',
+    next:'Health permit path first. Then a Tenderloin operator who already knows the block.',
+    programs:['Permit SF','Storefront Opportunity Grant'],
+    permits:[{id:'HSA-2017-1188', what:'Food-use lapsed', when:'2017'}],
+    evidence:[
+      {src:'Closed business registration', when:'2023', note:'Take-out entity gone.'},
+      {src:'Field observation', when:'Sep 8, 2026', note:'Gate down weekday lunch.'}
+    ]
+  },
+  {
+    id:'301-hyde', corridor:'tenderloin', name:'301 Hyde Street',
+    hood:'Tenderloin', cbd:'TLCBD',
+    lng:-122.4157, lat:37.7836, block:'0345', lot:'001', apn:'0345 001',
+    status:'verified', confidence:84, last:'Sep 9, 2026',
+    use:'Former services', zoning:'RC-4',
+    sqft:'1,050', plate:'Small', condition:'modest',
+    conditionNote:'CBD walk: glass intact. Interior not photographed.',
+    walk:97, transit:99, parking:'Civic Center garage',
+    rent:'Will discuss popup',
+    capital:'Right-sized for a short-form lease if insurance clears.',
+    next:'Vacant to Vibrant / popup before a 10-year lease. The owner is tired, not greedy.',
+    programs:['Vacant to Vibrant','TLCBD'],
+    permits:[],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 9, 2026', note:'Empty. Wants a tenant who will stay.'},
+      {src:'Field observation', when:'Sep 3, 2026', note:'Dated photo.'}
+    ]
+  },
+  {
+    id:'468-larkin', corridor:'tenderloin', name:'468 Larkin Street',
+    hood:'Tenderloin / Little Saigon', cbd:'TLCBD',
+    lng:-122.4169, lat:37.7815, block:'0331', lot:'016', apn:'0331 016',
+    status:'possible', confidence:39, last:'Aug 28, 2026',
+    use:'Unclear', zoning:'RC-4',
+    sqft:'720', plate:'Small', condition:'unknown',
+    conditionNote:'One dark bay. Stop at possible.',
+    walk:96, transit:98, parking:'Street',
+    rent:'Unknown',
+    capital:'Unknown',
+    next:'Ask a Larkin broker. May be storage.',
+    programs:['TLCBD'],
+    permits:[],
+    evidence:[{src:'Field observation', when:'Aug 28, 2026', note:'Lights off Saturday. No other signal.'}]
+  },
+  {
+    id:'520-jones', corridor:'tenderloin', name:'520 Jones Street',
+    hood:'Tenderloin / Lower Nob', cbd:'TLCBD',
+    lng:-122.4128, lat:37.7855, block:'0317', lot:'009', apn:'0317 009',
+    status:'marketed', confidence:61, last:'Sep 6, 2026',
+    use:'Retail possible', zoning:'RC-4',
+    sqft:'1,400', plate:'Standard', condition:'unknown',
+    conditionNote:'Listing is not vacancy.',
+    walk:97, transit:99, parking:'Sutter-Stockton',
+    rent:'Posted',
+    capital:'If food, budget the hood.',
+    next:'Listing broker, then PIM.',
+    programs:['Permit SF','Vacant to Vibrant'],
+    permits:[],
+    evidence:[{src:'Active leasing listing', when:'Sep 6, 2026', note:'One signal. Marketed.'}]
+  },
+  {
+    id:'1300-fillmore', corridor:'fillmore', name:'1300 Fillmore Street',
+    hood:'Fillmore Jazz District', cbd:'Fillmore CBD',
+    lng:-122.4324, lat:37.7815, block:'0732', lot:'014', apn:'0732 014',
+    status:'verified', confidence:91, last:'Sep 11, 2026',
+    use:'Former jazz-adjacent retail', zoning:'Fillmore Street NCT',
+    sqft:'2,400', plate:'Standard', condition:'unknown',
+    conditionNote:'This corridor has been the city’s vacancy poster for a decade. Records still cannot see inside.',
+    walk:89, transit:86, parking:'Japantown garage',
+    rent:'Owner has seen brokers come and go',
+    capital:'OEWD already paid for broker time here. The gap is TI and a tenant who will last.',
+    next:'Use the funded Fillmore broker, not a downtown plate specialist. Then PIM.',
+    programs:['OEWD corridor broker','Storefront Opportunity Grant','SF Shines'],
+    permits:[],
+    evidence:[
+      {src:'Fillmore CBD confirmation', when:'Sep 11, 2026', note:'Vacant. Verified.'},
+      {src:'Vacancy tax filing', when:'FY 2025', note:'Filed.'},
+      {src:'Field observation', when:'Sep 5, 2026', note:'Papered, jazz district banners above an empty bay.'}
+    ]
+  },
+  {
+    id:'1400-fillmore', corridor:'fillmore', name:'1400 Fillmore Street',
+    hood:'Fillmore Jazz District', cbd:'Fillmore CBD',
+    lng:-122.4325, lat:37.7830, block:'0733', lot:'001', apn:'0733 001',
+    status:'likely', confidence:80, last:'Sep 8, 2026',
+    use:'Former restaurant', zoning:'Fillmore Street NCT',
+    sqft:'3,100', plate:'Standard', condition:'unknown',
+    conditionNote:'Kitchen may be a cold shell. That is the Fillmore pattern.',
+    walk:88, transit:85, parking:'Geary garage',
+    rent:'Soft',
+    capital:'A restaurant reset on Fillmore is why spaces sit. Confirm the hood before you celebrate the rent.',
+    next:'PIM for last food use. Then the corridor broker.',
+    programs:['Permit SF','Storefront Opportunity Grant'],
+    permits:[{id:'HSA-2016-0901', what:'Food-use abandoned', when:'2016'}],
+    evidence:[
+      {src:'Inactive business registration', when:'2022', note:'Restaurant gone.'},
+      {src:'Field observation', when:'Sep 8, 2026', note:'Dark on a Friday night.'}
+    ]
+  },
+  {
+    id:'1500-fillmore', corridor:'fillmore', name:'1500 Fillmore Street',
+    hood:'Fillmore Jazz District', cbd:'Fillmore CBD',
+    lng:-122.4326, lat:37.7842, block:'0675', lot:'021', apn:'0675 021',
+    status:'verified', confidence:87, last:'Sep 9, 2026',
+    use:'Former apparel', zoning:'Fillmore Street NCT',
+    sqft:'1,780', plate:'Standard', condition:'modest',
+    conditionNote:'Owner questionnaire: needs paint and ADA door. Not a Walgreens cube.',
+    walk:87, transit:84, parking:'Street',
+    rent:'Will do a popup',
+    capital:'SF Shines + Opportunity Grant can actually pencil here.',
+    next:'This is the Fillmore win condition: small TI, local operator, city grant stacked.',
+    programs:['Storefront Opportunity Grant','SF Shines','Fillmore CBD'],
+    permits:[],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 9, 2026', note:'Empty, will take a six-month popup.'},
+      {src:'Field observation', when:'Sep 2, 2026', note:'Dated photo.'}
+    ]
+  },
+  {
+    id:'1555-fillmore', corridor:'fillmore', name:'1555 Fillmore Street',
+    hood:'Fillmore Jazz District', cbd:'Fillmore CBD',
+    lng:-122.4328, lat:37.7848, block:'0674', lot:'033', apn:'0674 033',
+    status:'marketed', confidence:58, last:'Sep 4, 2026',
+    use:'Retail', zoning:'Fillmore Street NCT',
+    sqft:'1,220', plate:'Small', condition:'unknown',
+    conditionNote:'Listing only.',
+    walk:86, transit:83, parking:'Street',
+    rent:'Posted',
+    capital:'Unknown',
+    next:'Listing broker. Do not count it vacant until someone walks it.',
+    programs:['Fillmore CBD'],
+    permits:[],
+    evidence:[{src:'Active leasing listing', when:'Sep 4, 2026', note:'Marketed.'}]
+  },
+  {
+    id:'1200-fillmore', corridor:'fillmore', name:'1200 Fillmore Street',
+    hood:'Fillmore / Western Addition', cbd:'Fillmore CBD',
+    lng:-122.4323, lat:37.7800, block:'0731', lot:'007', apn:'0731 007',
+    status:'likely', confidence:73, last:'Sep 7, 2026',
+    use:'Former neighborhood services', zoning:'Fillmore Street NCT',
+    sqft:'960', plate:'Small', condition:'unknown',
+    conditionNote:'Long dark. No interior.',
+    walk:88, transit:85, parking:'Street',
+    rent:'Family ownership, slow',
+    capital:'Tired owner, small TI — the Fillmore stall.',
+    next:'CBD introduction, not a cold letter.',
+    programs:['OEWD corridor broker','SF Shines'],
+    permits:[],
+    evidence:[
+      {src:'Field observation', when:'Sep 7, 2026', note:'Papered two years running.'},
+      {src:'Closed business registration', when:'2024', note:'Lapsed.'}
+    ]
+  },
+  {
+    id:'4400-third', corridor:'bayview', name:'4400 3rd Street',
+    hood:'Bayview', cbd:'Bayview Avenues',
+    lng:-122.3902, lat:37.7388, block:'5253', lot:'024', apn:'5253 024',
+    status:'verified', confidence:88, last:'Sep 10, 2026',
+    use:'Former neighborhood retail', zoning:'Bayview NCD',
+    sqft:'1,560', plate:'Small', condition:'unknown',
+    conditionNote:'Third Street has the vacancies and the foot-traffic gap. Different from the Mission.',
+    walk:78, transit:74, parking:'Street + lots',
+    rent:'Owner local',
+    capital:'Code and a thin customer base. Grants matter more than a fancy listing.',
+    next:'Bayview Avenues / OEWD corridor support first. Then PIM.',
+    programs:['Storefront Opportunity Grant','OEWD corridor broker','SF Shines'],
+    permits:[],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 10, 2026', note:'Vacant. Verified.'},
+      {src:'Field observation', when:'Sep 6, 2026', note:'Dated photo, Third Street.'}
+    ]
+  },
+  {
+    id:'4600-third', corridor:'bayview', name:'4600 3rd Street',
+    hood:'Bayview', cbd:'Bayview Avenues',
+    lng:-122.3898, lat:37.7365, block:'5278', lot:'011', apn:'5278 011',
+    status:'likely', confidence:75, last:'Sep 8, 2026',
+    use:'Former food', zoning:'Bayview NCD',
+    sqft:'1,210', plate:'Small', condition:'unknown',
+    conditionNote:'Hood unknown. Same capital trap as Excelsior, thinner rents.',
+    walk:76, transit:73, parking:'Street',
+    rent:'Soft',
+    capital:'If the kitchen is dead, this does not pencil without a grant.',
+    next:'PIM for last food use. Then Storefront Opportunity Grant.',
+    programs:['Storefront Opportunity Grant','Permit SF'],
+    permits:[{id:'HSA-2015-330', what:'Food-use abandoned', when:'2015'}],
+    evidence:[
+      {src:'Closed business registration', when:'2023', note:'Lapsed.'},
+      {src:'Field observation', when:'Sep 8, 2026', note:'Gate down.'}
+    ]
+  },
+  {
+    id:'4800-third', corridor:'bayview', name:'4800 3rd Street',
+    hood:'Bayview', cbd:'Bayview Avenues',
+    lng:-122.3895, lat:37.7340, block:'5311', lot:'008', apn:'5311 008',
+    status:'verified', confidence:85, last:'Sep 9, 2026',
+    use:'Former services', zoning:'Bayview NCD',
+    sqft:'1,080', plate:'Small', condition:'modest',
+    conditionNote:'Owner walked it. Paint and an ADA door.',
+    walk:75, transit:72, parking:'Street',
+    rent:'Will consider below-ask',
+    capital:'This is a grant-shaped space, not a downtown cube.',
+    next:'Opportunity Grant + neighborhood operator. Do not send a Union Square retailer.',
+    programs:['Storefront Opportunity Grant','SF Shines','ADA Access grant'],
+    permits:[],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 9, 2026', note:'Empty. Verified.'},
+      {src:'Field observation', when:'Sep 1, 2026', note:'Dated photo.'}
+    ]
+  },
+  {
+    id:'5000-third', corridor:'bayview', name:'5000 3rd Street',
+    hood:'Bayview', cbd:'Bayview Avenues',
+    lng:-122.3892, lat:37.7315, block:'5331', lot:'015', apn:'5331 015',
+    status:'possible', confidence:37, last:'Aug 27, 2026',
+    use:'Unclear', zoning:'Bayview NCD',
+    sqft:'840', plate:'Small', condition:'unknown',
+    conditionNote:'One dark bay. Possible only.',
+    walk:74, transit:71, parking:'Street',
+    rent:'Unknown',
+    capital:'Unknown',
+    next:'Ask the Third Street broker.',
+    programs:['Bayview Avenues'],
+    permits:[],
+    evidence:[{src:'Field observation', when:'Aug 27, 2026', note:'Lights off. No filing.'}]
+  },
+  {
+    id:'5200-third', corridor:'bayview', name:'5200 3rd Street',
+    hood:'Bayview', cbd:'Bayview Avenues',
+    lng:-122.3890, lat:37.7290, block:'5352', lot:'003', apn:'5352 003',
+    status:'occupied', confidence:82, last:'Sep 10, 2026',
+    use:'Neighborhood retail · open', zoning:'Bayview NCD',
+    sqft:'990', plate:'Small', condition:'turnkey',
+    conditionNote:'Occupied. Third Street is not a smear.',
+    walk:73, transit:70, parking:'Street',
+    rent:'n/a',
+    capital:'n/a',
+    next:'Leave it. Point operators at 4400 and 4800.',
+    programs:['Shop & Dine SF'],
+    permits:[],
+    evidence:[
+      {src:'Field observation', when:'Sep 10, 2026', note:'Open.'},
+      {src:'Active business registration', when:'2026', note:'Current.'}
+    ]
+  },
+  {
+    id:'801-irving', corridor:'sunset', name:'801 Irving Street',
+    hood:'Inner Sunset · 9th Ave', cbd:'Inner Sunset Merchants',
+    lng:-122.4648, lat:37.7640, block:'1763', lot:'018', apn:'1763 018',
+    status:'marketed', confidence:60, last:'Sep 6, 2026',
+    use:'Retail / café possible', zoning:'Inner Sunset NCD',
+    sqft:'1,140', plate:'Small', condition:'unknown',
+    conditionNote:'Listing on Irving is not a walk-through. N-Judah traffic does not prove the bay is empty.',
+    walk:91, transit:88, parking:'Street + 9th Ave garage',
+    rent:'Posted',
+    capital:'If they want food, the hood is the whole conversation.',
+    next:'Listing broker, then PIM for last legal use. Inner Sunset, not a downtown plate.',
+    programs:['Permit SF','SF Shines','Office of Small Business leasing'],
+    permits:[],
+    evidence:[{src:'Active leasing listing', when:'Sep 6, 2026', note:'One signal. Marketed.'}]
+  },
+  {
+    id:'1234-irving', corridor:'sunset', name:'1234 Irving Street',
+    hood:'Inner Sunset · 12th–13th', cbd:'Inner Sunset Merchants',
+    lng:-122.4700, lat:37.7638, block:'1765', lot:'007', apn:'1765 007',
+    status:'verified', confidence:88, last:'Sep 10, 2026',
+    use:'Former neighborhood retail', zoning:'Inner Sunset NCD',
+    sqft:'1,280', plate:'Small', condition:'unknown',
+    conditionNote:'Owner confirmed empty. Fog-side NCDs fail like Excelsior: old code, family title, not a write-off.',
+    walk:90, transit:86, parking:'Street',
+    rent:'Owner will talk',
+    capital:'ADA door and electrical. Not a cold shell — still a grant-shaped bill.',
+    next:'Inner Sunset merchants already know this bay. Then PIM, then Opportunity Grant.',
+    programs:['Storefront Opportunity Grant','SF Shines','ADA Access grant'],
+    permits:[],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 10, 2026', note:'Vacant. Verified.'},
+      {src:'Field observation', when:'Sep 5, 2026', note:'Papered glass on Irving, N-Judah passing.'}
+    ]
+  },
+  {
+    id:'1432-irving', corridor:'sunset', name:'1432 Irving Street',
+    hood:'Inner Sunset · 15th Ave', cbd:'Inner Sunset Merchants',
+    lng:-122.4730, lat:37.7637, block:'1766', lot:'021', apn:'1766 021',
+    status:'likely', confidence:76, last:'Sep 8, 2026',
+    use:'Former services', zoning:'Inner Sunset NCD',
+    sqft:'960', plate:'Small', condition:'modest',
+    conditionNote:'Neighbor walk: floor intact. Bathrooms unknown.',
+    walk:88, transit:84, parking:'Street',
+    rent:'Soft',
+    capital:'Small TI. The stall is a tired owner, not Mid-Market rent.',
+    next:'Merchant association intro. Do not cold-mail from downtown.',
+    programs:['SF Shines','Office of Small Business leasing'],
+    permits:[],
+    evidence:[
+      {src:'Closed business registration', when:'2024', note:'Lapsed.'},
+      {src:'Field observation', when:'Sep 8, 2026', note:'Gate down weekday afternoon.'}
+    ]
+  },
+  {
+    id:'1734-irving', corridor:'sunset', name:'1734 Irving Street',
+    hood:'Inner Sunset · 19th Ave', cbd:'Inner Sunset Merchants',
+    lng:-122.4772, lat:37.7636, block:'1768', lot:'014', apn:'1768 014',
+    status:'possible', confidence:38, last:'Aug 29, 2026',
+    use:'Unclear', zoning:'Inner Sunset NCD',
+    sqft:'780', plate:'Small', condition:'unknown',
+    conditionNote:'One dark bay on Irving. Possible only.',
+    walk:86, transit:82, parking:'Street',
+    rent:'Unknown',
+    capital:'Unknown',
+    next:'Ask an Inner Sunset broker. May be storage.',
+    programs:['Inner Sunset Merchants'],
+    permits:[],
+    evidence:[{src:'Field observation', when:'Aug 29, 2026', note:'Lights off Saturday. No filing.'}]
+  },
+  {
+    id:'1640-taraval', corridor:'sunset', name:'1640 Taraval Street',
+    hood:'Outer Sunset · Taraval', cbd:'Taraval Merchants',
+    lng:-122.4825, lat:37.7432, block:'2394', lot:'009', apn:'2394 009',
+    status:'likely', confidence:74, last:'Sep 7, 2026',
+    use:'Former neighborhood retail', zoning:'Taraval Street NCD',
+    sqft:'1,320', plate:'Small', condition:'unknown',
+    conditionNote:'L Taraval, decades in one family. New tenant buys a code upgrade.',
+    walk:79, transit:80, parking:'Street',
+    rent:'Estate / slow',
+    capital:'Same grandfather trap as Excelsior, west of 19th.',
+    next:'Taraval NCD + Opportunity Grant. Then Permit Center if the use changes.',
+    programs:['Storefront Opportunity Grant','Permit SF','ADA Access grant'],
+    permits:[{id:'—', what:'No modern permit trail', when:'pre-2008'}],
+    evidence:[
+      {src:'Closed business registration', when:'2023', note:'Family retail lapsed.'},
+      {src:'Field observation', when:'Sep 7, 2026', note:'Papered, L-Taraval going by.'}
+    ]
+  },
+  {
+    id:'214-clement', corridor:'richmond', name:'214 Clement Street',
+    hood:'Inner Richmond · Clement', cbd:'Clement Street Merchants',
+    lng:-122.4608, lat:37.7830, block:'1428', lot:'012', apn:'1428 012',
+    status:'verified', confidence:87, last:'Sep 11, 2026',
+    use:'Former restaurant', zoning:'Inner Clement Street NCD',
+    sqft:'1,460', plate:'Small', condition:'unknown',
+    conditionNote:'Clement still reads full. This bay is not. Hood status unknown.',
+    walk:93, transit:82, parking:'Street',
+    rent:'Owner will discuss',
+    capital:'If the Type I hood is gone, Clement rent does not save you.',
+    next:'PIM for last food use. Then a Richmond restaurant broker — not Union Square.',
+    programs:['Permit SF','Storefront Opportunity Grant','Clement Street Merchants'],
+    permits:[{id:'HSA-2018-2201', what:'Food-use abandoned', when:'2018'}],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 11, 2026', note:'Vacant. Verified.'},
+      {src:'Field observation', when:'Sep 6, 2026', note:'Papered on Clement, dinner crowd walking past.'}
+    ]
+  },
+  {
+    id:'418-clement', corridor:'richmond', name:'418 Clement Street',
+    hood:'Inner Richmond · Clement', cbd:'Clement Street Merchants',
+    lng:-122.4645, lat:37.7829, block:'1430', lot:'006', apn:'1430 006',
+    status:'likely', confidence:78, last:'Sep 8, 2026',
+    use:'Former retail / import', zoning:'Inner Clement Street NCD',
+    sqft:'1,090', plate:'Small', condition:'modest',
+    conditionNote:'Glass and floor intact. ADA door is the question.',
+    walk:92, transit:81, parking:'Street',
+    rent:'Soft',
+    capital:'SF Shines pencils. A change of use does not.',
+    next:'Merchants intro, then PIM if they want food.',
+    programs:['SF Shines','Office of Small Business leasing'],
+    permits:[],
+    evidence:[
+      {src:'Closed business registration', when:'2024', note:'Lapsed.'},
+      {src:'Field observation', when:'Sep 8, 2026', note:'Gate down, 5th–6th Ave.'}
+    ]
+  },
+  {
+    id:'640-clement', corridor:'richmond', name:'640 Clement Street',
+    hood:'Inner Richmond · Clement', cbd:'Clement Street Merchants',
+    lng:-122.4678, lat:37.7828, block:'1432', lot:'019', apn:'1432 019',
+    status:'occupied', confidence:90, last:'Sep 10, 2026',
+    use:'Neighborhood retail · open', zoning:'Inner Clement Street NCD',
+    sqft:'880', plate:'Small', condition:'turnkey',
+    conditionNote:'Occupied. Clement is not a smear. The book has to show the open bays.',
+    walk:92, transit:80, parking:'Street',
+    rent:'n/a',
+    capital:'n/a',
+    next:'Leave it. Point operators at 214 and 418.',
+    programs:['Shop & Dine SF'],
+    permits:[],
+    evidence:[
+      {src:'Field observation', when:'Sep 10, 2026', note:'Open, customers.'},
+      {src:'Active business registration', when:'2026', note:'Current.'}
+    ]
+  },
+  {
+    id:'812-clement', corridor:'richmond', name:'812 Clement Street',
+    hood:'Inner Richmond · Clement', cbd:'Clement Street Merchants',
+    lng:-122.4708, lat:37.7827, block:'1434', lot:'003', apn:'1434 003',
+    status:'possible', confidence:36, last:'Aug 30, 2026',
+    use:'Unclear', zoning:'Inner Clement Street NCD',
+    sqft:'740', plate:'Small', condition:'unknown',
+    conditionNote:'One dark bay. Possible only.',
+    walk:90, transit:79, parking:'Street',
+    rent:'Unknown',
+    capital:'Unknown',
+    next:'Ask a Clement broker. May be owner storage.',
+    programs:['Clement Street Merchants'],
+    permits:[],
+    evidence:[{src:'Field observation', when:'Aug 30, 2026', note:'Lights off Sunday. No listing.'}]
+  },
+  {
+    id:'5210-geary', corridor:'richmond', name:'5210 Geary Boulevard',
+    hood:'Central Richmond · Geary', cbd:'Geary Boulevard',
+    lng:-122.4758, lat:37.7806, block:'1515', lot:'027', apn:'1515 027',
+    status:'marketed', confidence:59, last:'Sep 4, 2026',
+    use:'Former formula / large bay', zoning:'Geary Boulevard NCD',
+    sqft:'4,800', plate:'Large floor plate', condition:'unknown',
+    conditionNote:'Geary’s version of the ghost-box problem: a wide bay, a thin operator pool, a listing that is not vacancy.',
+    walk:84, transit:85, parking:'Street + lots',
+    rent:'Posted, then “call”',
+    capital:'Too wide for a first shop. Split the plate or find a well-capitalized tenant.',
+    next:'Listing broker first. Then zoning — Geary formula fights take months.',
+    programs:['Permit SF','OEWD corridor broker','Storefront Opportunity Grant'],
+    permits:[],
+    evidence:[{src:'Active leasing listing', when:'Sep 4, 2026', note:'Marketed. Physical vacancy not confirmed.'}]
+  },
+  {
+    id:'1845-noriega', corridor:'outersunset', name:'1845 Noriega Street',
+    hood:'Outer Sunset · 28th Ave', cbd:'Noriega Merchants',
+    lng:-122.4865, lat:37.7540, block:'2061', lot:'016', apn:'2061 016',
+    status:'likely', confidence:75, last:'Sep 8, 2026',
+    use:'Former neighborhood retail', zoning:'Noriega Street NCD',
+    sqft:'1,180', plate:'Small', condition:'unknown',
+    conditionNote:'Noriega is the Outer Sunset main street. Family title, old code — same stall as Taraval and Excelsior.',
+    walk:80, transit:76, parking:'Street',
+    rent:'Soft',
+    capital:'ADA and electrical before rent. Fog-side NCD, not a downtown cube.',
+    next:'Noriega merchants, then PIM. Do not send a Mid-Market broker.',
+    programs:['Storefront Opportunity Grant','SF Shines','Office of Small Business leasing'],
+    permits:[],
+    evidence:[
+      {src:'Closed business registration', when:'2024', note:'Lapsed.'},
+      {src:'Field observation', when:'Sep 8, 2026', note:'Papered on Noriega, NX going by.'}
+    ]
+  },
+  {
+    id:'2334-noriega', corridor:'outersunset', name:'2334 Noriega Street',
+    hood:'Outer Sunset · 33rd Ave', cbd:'Noriega Merchants',
+    lng:-122.4915, lat:37.7536, block:'2064', lot:'008', apn:'2064 008',
+    status:'verified', confidence:86, last:'Sep 10, 2026',
+    use:'Former services', zoning:'Noriega Street NCD',
+    sqft:'940', plate:'Small', condition:'modest',
+    conditionNote:'Owner confirmed empty. Paint and an ADA door. Not a cold shell.',
+    walk:78, transit:74, parking:'Street',
+    rent:'Will talk',
+    capital:'Grant-shaped. Opportunity Grant can pencil here.',
+    next:'Owner is local. Merchant intro, then Opportunity Grant.',
+    programs:['Storefront Opportunity Grant','SF Shines','ADA Access grant'],
+    permits:[],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 10, 2026', note:'Vacant. Verified.'},
+      {src:'Field observation', when:'Sep 4, 2026', note:'Dated photo, 33rd & Noriega.'}
+    ]
+  },
+  {
+    id:'3201-taraval', corridor:'outersunset', name:'3201 Taraval Street',
+    hood:'Outer Sunset · 40th Ave', cbd:'Taraval Merchants',
+    lng:-122.4988, lat:37.7424, block:'2374', lot:'001', apn:'2374 001',
+    status:'possible', confidence:40, last:'Aug 28, 2026',
+    use:'Unclear', zoning:'Taraval Street NCD',
+    sqft:'860', plate:'Small', condition:'unknown',
+    conditionNote:'Far-west Taraval. One dark bay. Possible only.',
+    walk:74, transit:78, parking:'Street',
+    rent:'Unknown',
+    capital:'Unknown',
+    next:'Ask a Taraval broker. May be storage.',
+    programs:['Taraval Merchants'],
+    permits:[],
+    evidence:[{src:'Field observation', when:'Aug 28, 2026', note:'Gate down. No listing, no tax flag.'}]
+  },
+  {
+    id:'2445-clement', corridor:'outerrichmond', name:'2445 Clement Street',
+    hood:'Outer Richmond · 25th Ave', cbd:'Clement Street Merchants',
+    lng:-122.4858, lat:37.7823, block:'1408', lot:'022', apn:'1408 022',
+    status:'verified', confidence:85, last:'Sep 9, 2026',
+    use:'Former restaurant', zoning:'Outer Clement Street NCD',
+    sqft:'1,520', plate:'Small', condition:'unknown',
+    conditionNote:'Past Park Presidio, Clement thins out. Hood unknown. Same food-use trap as Inner Clement, fewer walk-ins.',
+    walk:82, transit:74, parking:'Street',
+    rent:'Owner will discuss',
+    capital:'If the hood is gone, Outer Clement rent will not save a kitchen.',
+    next:'PIM for last food use. Then a Richmond broker who works west of 20th.',
+    programs:['Permit SF','Storefront Opportunity Grant'],
+    permits:[{id:'HSA-2017-441', what:'Food-use abandoned', when:'2017'}],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 9, 2026', note:'Vacant. Verified.'},
+      {src:'Field observation', when:'Sep 3, 2026', note:'Papered, 25th & Clement.'}
+    ]
+  },
+  {
+    id:'3134-clement', corridor:'outerrichmond', name:'3134 Clement Street',
+    hood:'Outer Richmond · 32nd Ave', cbd:'Clement Street Merchants',
+    lng:-122.4928, lat:37.7820, block:'1461', lot:'011', apn:'1461 011',
+    status:'likely', confidence:73, last:'Sep 7, 2026',
+    use:'Former neighborhood retail', zoning:'Outer Clement Street NCD',
+    sqft:'1,020', plate:'Small', condition:'modest',
+    conditionNote:'Long-run shop. New tenant likely loses the grandfather.',
+    walk:80, transit:72, parking:'Street',
+    rent:'Estate / slow',
+    capital:'Code upgrade, not Mid-Market TI.',
+    next:'Merchants intro. Then ADA grant if the door is the block.',
+    programs:['SF Shines','ADA Access grant','Office of Small Business leasing'],
+    permits:[],
+    evidence:[
+      {src:'Closed business registration', when:'2024', note:'Lapsed.'},
+      {src:'Field observation', when:'Sep 7, 2026', note:'Gate down weekday.'}
+    ]
+  },
+  {
+    id:'3418-balboa', corridor:'outerrichmond', name:'3418 Balboa Street',
+    hood:'Outer Richmond · Balboa', cbd:'Balboa Street',
+    lng:-122.4965, lat:37.7756, block:'1588', lot:'007', apn:'1588 007',
+    status:'likely', confidence:71, last:'Sep 6, 2026',
+    use:'Former services', zoning:'Outer Balboa Street NCD',
+    sqft:'880', plate:'Small', condition:'unknown',
+    conditionNote:'Balboa is the quieter Richmond street. Vacancies here are easy to miss on a Clement-only map.',
+    walk:77, transit:70, parking:'Street',
+    rent:'Soft',
+    capital:'Small TI. Tired owner.',
+    next:'Do not skip Balboa because Clement photographs better.',
+    programs:['SF Shines','Office of Small Business leasing'],
+    permits:[],
+    evidence:[
+      {src:'Field observation', when:'Sep 6, 2026', note:'Dark Saturday afternoon.'},
+      {src:'Inactive business registration', when:'2023', note:'Lapsed.'}
+    ]
+  },
+  {
+    id:'1255-ocean', corridor:'ocean', name:'1255 Ocean Avenue',
+    hood:'Ocean Ave · 19th / SFSU / Parkmerced edge', cbd:'Ocean Avenue',
+    lng:-122.4755, lat:37.7236, block:'6935', lot:'014', apn:'6935 014',
+    status:'verified', confidence:84, last:'Sep 10, 2026',
+    use:'Former neighborhood retail', zoning:'Ocean Avenue NCD',
+    sqft:'1,360', plate:'Small', condition:'unknown',
+    conditionNote:'Parkmerced is housing. The storefronts are on Ocean. This bay sits at the 19th Avenue edge students actually walk.',
+    walk:81, transit:83, parking:'Street + SFSU lots',
+    rent:'Owner local',
+    capital:'Student-serving use can work. A cold kitchen will not.',
+    next:'Ocean Avenue merchants, then PIM. Do not inventory the Parkmerced towers as vacant retail.',
+    programs:['Storefront Opportunity Grant','SF Shines','Office of Small Business leasing'],
+    permits:[],
+    evidence:[
+      {src:'Owner confirmation', when:'Sep 10, 2026', note:'Vacant. Verified.'},
+      {src:'Field observation', when:'Sep 5, 2026', note:'Papered on Ocean, K/M going by.'}
+    ]
+  },
+  {
+    id:'800-ocean', corridor:'ocean', name:'800 Ocean Avenue',
+    hood:'Ocean Ave · Ingleside / City College', cbd:'Ocean Avenue',
+    lng:-122.4678, lat:37.7242, block:'6944', lot:'003', apn:'6944 003',
+    status:'likely', confidence:74, last:'Sep 8, 2026',
+    use:'Former café / retail', zoning:'Ocean Avenue NCD',
+    sqft:'1,100', plate:'Small', condition:'unknown',
+    conditionNote:'Between City College and Parkmerced. Foot traffic is real. The bay is still dark.',
+    walk:83, transit:85, parking:'Street',
+    rent:'Soft',
+    capital:'If food, confirm the hood. Same rule as Clement.',
+    next:'PIM for last legal use. Then an Ocean Ave broker.',
+    programs:['Permit SF','Storefront Opportunity Grant'],
+    permits:[{id:'HSA-2019-088', what:'Food-use lapsed', when:'2019'}],
+    evidence:[
+      {src:'Closed business registration', when:'2024', note:'Lapsed.'},
+      {src:'Field observation', when:'Sep 8, 2026', note:'Gate down, students walking past.'}
+    ]
+  },
+  {
+    id:'701-font', corridor:'ocean', name:'701 Font Boulevard',
+    hood:'Parkmerced village retail', cbd:'Parkmerced',
+    lng:-122.4805, lat:37.7218, block:'7308', lot:'001', apn:'7308 001',
+    status:'unknown', confidence:22, last:'Jul 20, 2026',
+    use:'Village retail / unclear', zoning:'Parkmerced SUD',
+    sqft:'—', plate:'Unknown', condition:'unknown',
+    conditionNote:'Parkmerced is a residential superblock, not a commercial corridor. This is the village retail face. We will not invent vacant storefronts in the towers.',
+    walk:70, transit:72, parking:'Site garage',
+    rent:'Unknown',
+    capital:'Unknown — and we will not guess.',
+    next:'If you came here for storefronts, go to Ocean Avenue. If you came here for housing, this is the wrong book.',
+    programs:['—'],
+    permits:[],
+    evidence:[
+      {src:'Assessor / SUD record only', when:'Jul 20, 2026', note:'Parcel exists. No listing, no vacancy-tax flag, no dated field check this quarter. Unknown is the honest status.'}
+    ]
+  }
+];
+
+const CIVIC = [{
+  id:'49svn', name:'Permit Center',
+  lng:-122.4188, lat:37.7752,
+  blurb:'49 South Van Ness. Ask a permit specialist about the location, then pull the file.'
+}];
+
+const CAM = {
+  all:       { center:[-122.445, 37.755], zoom:11.55, pitch:0,  bearing:0 },
+  downtown:  { center:[-122.3995, 37.7892], zoom:15.15, pitch:54, bearing:-28 },
+  excelsior: { center:[-122.4352, 37.7240], zoom:15.35, pitch:48, bearing:18 },
+  mission:    { center:[-122.4193, 37.7578], zoom:15.05, pitch:52, bearing:8 },
+  tenderloin: { center:[-122.4145, 37.7835], zoom:15.35, pitch:50, bearing:-18 },
+  fillmore:   { center:[-122.4326, 37.7828], zoom:15.45, pitch:48, bearing:6 },
+  bayview:    { center:[-122.3896, 37.7338], zoom:15.05, pitch:46, bearing:-8 },
+  sunset:     { center:[-122.4708, 37.7637], zoom:15.2, pitch:48, bearing:12 },
+  richmond:      { center:[-122.4672, 37.7828], zoom:15.25, pitch:48, bearing:8 },
+  outersunset:   { center:[-122.4920, 37.7485], zoom:14.35, pitch:44, bearing:6 },
+  outerrichmond: { center:[-122.4905, 37.7798], zoom:14.55, pitch:46, bearing:8 },
+  ocean:         { center:[-122.4755, 37.7234], zoom:15.05, pitch:48, bearing:-4 }
+};
+
+const STYLES = {
+  day: 'https://tiles.openfreemap.org/styles/liberty',
+  night: 'https://tiles.openfreemap.org/styles/fiord',
+  aerial: {
+    version: 8,
+    sources: {
+      esri: {
+        type: 'raster',
+        tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: 'Tiles © Esri — Esri, Maxar, Earthstar Geographics'
+      }
+    },
+    layers: [{ id:'esri', type:'raster', source:'esri' }]
+  }
+};
+
+const notes = JSON.parse(localStorage.getItem('blockbook-notes') || '{}');
+const markers = new Map();
+let map, corridor = 'all', basemap = 'day', statusFilter = 'all', selected = null, idea = '', customIdea = '', experience = '', listCollapsed = false;
+
+const IDEAS = {
+  coffee:   { label:'Coffee shop', food:true, plate:'small', capital:'$80–180k if a hood exists; $200k+ if you build a kitchen', permit:'Health + DBI if you add food. Coffee-only is lighter than a café kitchen.', ticket:'$4–7 cup', linger:true },
+  chai:     { label:'Indian chai spot', food:true, plate:'small', capital:'$90–200k. Tea + milk + food-use. Hood decides everything.', permit:'Health permit. Last legal food-use is the first PIM question.', ticket:'$4–6 cup · snack extra', linger:true },
+  matcha:   { label:'Japanese matcha + bookstore', food:true, plate:'small', capital:'$70–160k. Books are retail; matcha service may trigger food-use.', permit:'Retail for books. Food-use if you heat or serve more than prepackaged.', ticket:'$6–8 matcha · book $18–28', linger:true },
+  icecream: { label:'Ice cream café', food:true, plate:'small', capital:'$120–250k. Freezers + plumbing. Not a paint job.', permit:'Health. Grease is less than a fryer; plumbing is not optional.', ticket:'$6–9 scoop', linger:false },
+  bookstore:{ label:'Indie bookstore', food:false, plate:'small', capital:'$40–90k vanilla box; more if ADA/electrical. No hood.', permit:'Retail. Fastest path. Change-of-use if the last use was food and you drop the kitchen.', ticket:'$16–32 book', linger:true },
+  vintage:  { label:'Vintage bookstore', food:false, plate:'small', capital:'$35–80k. Inventory is the cost, not the TI — unless code upgrades hit.', permit:'Retail. Same path as indie books.', ticket:'$8–40 used', linger:true },
+  artisan:  { label:'SF-made artisan shop + café', food:true, plate:'standard', capital:'$100–220k. Retail is easy. The café half is the permit clock.', permit:'Retail + health if you serve. Split the use on the card if you can.', ticket:'$8 coffee · $28–80 object', linger:true },
+  record:   { label:'Record store + coffee', food:true, plate:'small', capital:'$70–150k. Vinyl is retail. Espresso may stay under a light food-use if no kitchen.', permit:'Retail first. Confirm with Permit SF before you buy a machine.', ticket:'$5 cup · $22–40 LP', linger:true },
+  bookcafe: { label:'Bookstore + café', food:true, plate:'standard', capital:'$110–240k. Two uses, one bay. Kitchen is the risk.', permit:'Retail + food-use. Last legal use on PIM is the fork in the road.', ticket:'$5 cup · $20 book', linger:true }
+};
+
+const BLOCK = {
+  downtown: {
+    short:'Downtown / Market',
+    strength:{ n:4, label:'Strong weekday · weak weekend' },
+    vibe:'Commuter + tourist + ghost retail. This is a civic street, not a neighborhood hang. People are buying speed.',
+    spend:{ ticket:'$5–8 coffee · $14–22 lunch', willing:'Office will pay downtown prices before 2pm on a weekday.', ceiling:'They will not come back Saturday for a $7 latte. Do not staff like Valencia.' },
+    hours:[
+      { d:'Mon–Thu', t:'7:00–9:30 and 11:30–1:30 are the money. After 6 it empties unless you sit on a hotel or the Embarcadero.' },
+      { d:'Friday', t:'Happy hour is real on Market. Stay open to 7. Then it drops hard.' },
+      { d:'Sat–Sun', t:'Thinner. Tourists, not commuters. Do not roster a full weekday crew.' }
+    ],
+    coffee:{
+      rule:'Old rule of thumb: no second coffee shop within two blocks. Starbucks broke it. Downtown now stacks Peet’s, Blue Bottle, Philz, hotel carts, and independents on the same sidewalk.',
+      density:'Saturated. A fourth espresso window two doors down is a fight unless you have a wedge.',
+      wifi:'Wi-Fi and outlets are the downtown coffee gap — not another pour-over. Laptop hours are how you keep the 10am slump.',
+      gap:'Sit-down weekday coffee with seats and power. Not another 6am walk-up with no chairs.'
+    },
+    missing:['Weekday seating + outlets + working Wi-Fi','Evening uses that are not a bar in a hotel','Anything that fits a small plate — the street is full of 10k sf ghosts'],
+    history:'Banks and formula retail left the large plates. Independents drown in them. Vacant to Vibrant is the city’s answer, not another 11,000 sf café.',
+    vs:'Downtown buys convenience on a weekday. The Mission buys identity on a weekend. Do not import a Valencia concept onto Market and expect Saturday.',
+    brokers:['Call a downtown / East Cut retail broker.','SF New Deal · Vacant to Vibrant matchmaking'],
+    money:['Vacant to Vibrant popup grant (up to $10k, rent-free term)','Downtown Business Fund / TI (larger plates)','Storefront Opportunity Grant $50–100k if you qualify as small'],
+    nearby:['Financial-district lunch, not a weekend stroll','Ghost-box neighbors: former formula retail','Tourism + office — AM/PM are different animals'],
+    survive:'Survivability here is capital and plate size, not foot-traffic theory. A first coffee will drown in an 11,000 sf Walgreens hole.'
+  },
+  tenderloin: {
+    short:'Tenderloin',
+    strength:{ n:3, label:'Always people · harder ticket' },
+    vibe:'Dense, service-heavy, night streets. The sidewalk is never empty. Spend is not downtown spend.',
+    spend:{ ticket:'$3–5 coffee · neighborhood lunch', willing:'Volume is here. Price has to be neighborhood, not Montgomery.', ceiling:'A $8 specialty cup will be walked past. Insurance and hours are the real underwrite.' },
+    hours:[
+      { d:'Mon–Fri', t:'Morning through evening is real. Unlike Market, Sunday is also a day.' },
+      { d:'Fri–Sat', t:'Night is part of the P&L. Safety and staffing are the cost, not discovery.' },
+      { d:'Sunday', t:'Neighborhood day. Downtown logic does not apply.' }
+    ],
+    coffee:{
+      rule:'Two-block rule still means something here — cafés already sit on Turk, Eddy, Larkin.',
+      density:'Dense. Another café needs a reason: price, hours, language, or a tenant who already knows the block.',
+      wifi:'People will use it. It is not the wedge. Trust and hours are.',
+      gap:'Not a fifth espresso. A use that is open when the others are not, at a ticket the block will pay.'
+    },
+    missing:['Daytime retail that is not a social-service neighbor','A shop that stays open and looks tended','Evening that feels staffed, not abandoned'],
+    history:'High vacancy counts, high turnover. CBD staff before a cold owner letter. Survivability is a person, not a concept.',
+    vs:'Downtown has the weekday pulse and the empty Saturday. The Tenderloin has people seven days and a lower ceiling on what they will spend.',
+    brokers:['TLCBD staff before a cold owner letter','Tenderloin-fluent retail broker'],
+    money:['Vacant to Vibrant','SF Shines facade','Storefront Opportunity Grant'],
+    nearby:['Dense food already — another café needs a reason','Nonprofit / social-service adjacency','Night safety is part of the underwrite'],
+    survive:'Counts are high. Survivability is insurance, hours, and a tenant who already knows the block.'
+  },
+  mission: {
+    short:'The Mission',
+    strength:{ n:5, label:'Strong corridor · food is not scarce' },
+    vibe:'Identity street. People are already here. Papered windows are a use-fit problem, not a “nobody walks this block” problem.',
+    spend:{ ticket:'$4–7 coffee · evening food and drink is the real money', willing:'They will pay for a place with a reason. They will walk past the fourth café.', ceiling:'A downtown laptop farm will get side-eye. This block spends at night and on weekends — the opposite of Market.' },
+    hours:[
+      { d:'Mon–Thu', t:'Morning bakeries and all-day food. Evening is when the street earns.' },
+      { d:'Friday', t:'Late. Happy hour exists, but it is a bar street, not an office drain.' },
+      { d:'Sat–Sun', t:'The strong days. Market Street’s weekend shrug does not happen here.' }
+    ],
+    coffee:{
+      rule:'Two-block rule still matters more than downtown. Identity shops cluster. Starbucks is not the Mission story — Ritual, Philz, and the locals are.',
+      density:'Saturated. Coffee is not the missing thing.',
+      wifi:'Some want a hang. A laptop warehouse is not a wedge on Valencia or Mission.',
+      gap:'Anything but another café. Books, records, retail without a kitchen. Or a successor in a bay that already has a hood.'
+    },
+    missing:['Non-food retail','A use that does not trigger a new kitchen','Successor food only if the hood is still there'],
+    history:'Restaurants turn over. Papered windows linger. Calle 24 and Mission Street are not Valencia rents — do not underwrite them as the same street.',
+    vs:'Downtown is weekday AM. The Mission is weekend and night. Same city, opposite clock.',
+    brokers:['Mission Street / Calle 24 CBD intro','Mission corridor broker — not Union Square'],
+    money:['Storefront Opportunity Grant','SF Shines','Shop & Dine / Mission Loteria for traffic, not TI'],
+    nearby:['Taquerías, bakeries, bars — food is not scarce','Valencia is the rentier cousin; Mission St is the papered one'],
+    survive:'People are already here. Survivability is use-fit and whether you trigger a kitchen, not discovery.'
+  },
+  fillmore: {
+    short:'Fillmore Jazz District',
+    strength:{ n:2, label:'Named corridor · weak daytime' },
+    vibe:'Jazz and night, historic vacancy poster. The name is famous. The weekday sidewalk is not.',
+    spend:{ ticket:'Destination dinner and night · quieter daytime ticket', willing:'Friday/Saturday night will spend. Tuesday at 10am will not, unless you are the only open door.', ceiling:'Do not price like Hayes Valley and expect a weekday lunch rush.' },
+    hours:[
+      { d:'Mon–Thu', t:'Daytime is the gap. A coffee or bookstore that is actually open can own the block.' },
+      { d:'Fri–Sat', t:'Night is the corridor’s old identity. Food and music, not a 7am office line.' },
+      { d:'Sunday', t:'Neighborhood / church / brunch if you earn it. Not a given.' }
+    ],
+    coffee:{
+      rule:'Two-block rule barely applies — the street is empty, not stacked.',
+      density:'Not saturated. Daytime coffee is a real gap.',
+      wifi:'Yes, if you want weekday linger. That is how you survive the nights you are not a jazz club.',
+      gap:'A tended daytime hang. Books, records, coffee with seats. Not another restaurant TI.'
+    },
+    missing:['Daytime coffee or books that stay open','Small retail without a kitchen','Anything that does not need a six-figure hood'],
+    history:'Years of empty bays. OEWD already paid for a corridor broker. The stall is TI and time, not “nobody has heard of Fillmore.”',
+    vs:'Downtown has too many cafés and too much weekday. Fillmore has too few open doors before dark.',
+    brokers:['OEWD-funded Fillmore corridor broker','Fillmore CBD'],
+    money:['Storefront Opportunity Grant','SF Shines','OEWD broker support already paid for'],
+    nearby:['Jazz-district food and night uses','Japantown one hill over'],
+    survive:'The stall is years of empty + TI. A small bookstore can live here. A new restaurant often cannot.'
+  },
+  bayview: {
+    short:'Third Street / Bayview',
+    strength:{ n:2, label:'Corridor exists · foot-traffic gap' },
+    vibe:'Neighborhood, not a tourist row. Third Street has the vacancies and the thinner evening.',
+    spend:{ ticket:'Neighborhood prices — $3–5 coffee, family dinner', willing:'Residents will spend if you are for them.', ceiling:'Downtown tickets and a destination concept from SoMa will fail here. The grant stack is part of the P&L.' },
+    hours:[
+      { d:'Mon–Fri', t:'After-school and early evening, not a 7:30 office spike.' },
+      { d:'Saturday', t:'The stronger retail day. Staff it.' },
+      { d:'Sunday / nights', t:'Thinner than the Mission. Do not underwrite a late bar as the base case.' }
+    ],
+    coffee:{
+      rule:'Two-block rule is still useful — you will not find a Starbucks on every corner.',
+      density:'Not stacked. A good neighborhood coffee can work.',
+      wifi:'Useful. Do not price like a downtown laptop café.',
+      gap:'Sit-down coffee and light food at a neighborhood ticket. The gap is real; the spend ceiling is too.'
+    },
+    missing:['Neighborhood coffee that is actually open','Evening light food','Retail that is not a destination brand'],
+    history:'Third Street is in the city’s vacancy conversation because of empty bays and thinner walk, not because the neighborhood vanished.',
+    vs:'Downtown has the walk and the stacked cafés. Bayview has the gap and the grant — and a hard ceiling on ticket.',
+    brokers:['Bayview Avenues / Third Street broker','OEWD corridor support'],
+    money:['Storefront Opportunity Grant — this is who it was built for','SF Shines','ADA Access grant'],
+    nearby:['Neighborhood food, not a tourist row','Thinner evening traffic than the Mission'],
+    survive:'Survivability is a neighborhood-serving use and a grant stack, not a destination concept from downtown.'
+  },
+  sunset: {
+    short:'Inner Sunset / Irving',
+    strength:{ n:4, label:'Thick food street · N-Judah is real' },
+    vibe:'Fog, families, UCSF and the N. Irving already eats. This is a neighborhood that cooks at home and still fills the restaurants.',
+    spend:{ ticket:'$4–6 coffee · family dinner', willing:'Weekend brunch and school-run coffee are real money.', ceiling:'A second kitchen is a fight. They will not fund your fourth café if the three nearby are fine.' },
+    hours:[
+      { d:'Mon–Fri', t:'School / clinic morning. Early evening, then it quiets in the fog.' },
+      { d:'Sat–Sun', t:'Brunch is the west-side happy hour. Close earlier than Mission bars.' },
+      { d:'Nights', t:'Earlier than downtown Friday. Do not staff a 10pm espresso bar.' }
+    ],
+    coffee:{
+      rule:'Irving is already a café street. Two-block rule applies.',
+      density:'Thick. Another café needs a wedge — hours, seating, or not-coffee.',
+      wifi:'Some. This is not a downtown laptop farm. Families do not sit three hours.',
+      gap:'Books, records, retail without a hood. Not another kitchen.'
+    },
+    missing:['Non-food retail','A hang that is not a restaurant','Successor food only if a hood exists'],
+    history:'Family ownership and old code. Fog-side NCD: the fight is the rehab, then the second food-use on a street that already has food.',
+    vs:'Downtown’s coffee problem is saturation plus a dead weekend. Irving’s is saturation plus families who go home at dusk.',
+    brokers:['Inner Sunset merchants','West-side NCD broker'],
+    money:['SF Shines','Storefront Opportunity Grant','OSB leasing help'],
+    nearby:['Irving food is thick — another café needs a wedge','N-Judah traffic is real'],
+    survive:'Fog-side: family ownership and code. A bookstore or record shop fits. A second kitchen is a fight.'
+  },
+  richmond: {
+    short:'Clement / Geary',
+    strength:{ n:4, label:'Clement is a restaurant street · Geary is a wide bay' },
+    vibe:'Clement cooks. Geary is the boulevard with the plates. Inner Richmond spends on food all week.',
+    spend:{ ticket:'Restaurant and grocery money · $4–6 coffee', willing:'Lunch and dinner seven days. Dim-sum weekend energy is real.', ceiling:'Geary’s large plate will eat a chai shop. Clement will not fund the fifth café if you needed a new hood.' },
+    hours:[
+      { d:'Mon–Fri', t:'Lunch and dinner. Morning is grocery and school, not a Market Street spike.' },
+      { d:'Sat–Sun', t:'Strong. This is not a commuter corridor that dies on Saturday.' },
+      { d:'Nights', t:'Restaurant late. Coffee should close earlier.' }
+    ],
+    coffee:{
+      rule:'Clement has cafés. Geary is less stacked. Two-block rule still helps on Clement.',
+      density:'Medium-high on Clement. Lower on Geary — but Geary’s problem is plate size, not coffee count.',
+      wifi:'Not the wedge. Food is the culture.',
+      gap:'On Geary a weekday coffee that is not a hike to Coffee Movement on 19th is a real gap. Pizza is not a morning option. Clement already cooks.'
+    },
+    missing:['Retail that is not a restaurant','A small use on Geary that does not rent a boulevard bay','Evening that is not another dining room'],
+    history:'Immigrant food corridor with staying power. The vacancy is often a wide Geary bay or a code fight, not an empty Clement.',
+    vs:'Downtown stacks coffee for office. Clement stacks restaurants for the neighborhood. Same “too much already” problem, different use.',
+    brokers:['Clement Street Merchants','Richmond food-use broker'],
+    money:['SF Shines','Storefront Opportunity Grant','OSB'],
+    nearby:['Clement is already a restaurant street','Geary has the wide bays'],
+    survive:'Clement supports small food if a hood exists. Geary’s large plate will eat a chai shop.'
+  },
+  outersunset: {
+    short:'Noriega / Outer Taraval',
+    strength:{ n:2, label:'Neighborhood strip · quiet after dark' },
+    vibe:'West of 30th the city gets residential. Noriega still has Chinese bakeries and cafés. Nights go quiet.',
+    spend:{ ticket:'Local — $3–5 coffee, family take-out', willing:'Neighbors, not destinations.', ceiling:'A matcha bar from Valencia will not travel this far for Saturday. Neighborhood ticket or do not open.' },
+    hours:[
+      { d:'Mon–Fri', t:'Daytime neighborhood. School and errands, not office AM.' },
+      { d:'Saturday', t:'The walk day. Staff it.' },
+      { d:'Nights / Sunday', t:'Quiet west of 30th. Close earlier than you want.' }
+    ],
+    coffee:{
+      rule:'Not stacked like Irving. A good one can live. Two-block rule is still a kindness to yourself.',
+      density:'Low-medium. Gap is real if you price local.',
+      wifi:'Nice. Not a SoMa laptop story.',
+      gap:'A hang that is actually open. Books. Not a destination concept.'
+    },
+    missing:['A tended daytime hang','Small retail','Anything that does not need destination traffic'],
+    history:'Same book as Excelsior: old code, local owner. Small retail survives. New food-use is a bet.',
+    vs:'Downtown has the crowd and the stacked cafés. Outer Sunset has neither — which is the opportunity and the risk.',
+    brokers:['Noriega / Taraval merchants','Outer Sunset broker'],
+    money:['Storefront Opportunity Grant','SF Shines','ADA Access grant'],
+    nearby:['Neighborhood Chinese / cafés on Noriega','Quiet nights west of 30th'],
+    survive:'Same as Excelsior: old code, local owner. Small retail survives. New food-use is a bet.'
+  },
+  outerrichmond: {
+    short:'Outer Clement / Balboa',
+    strength:{ n:2, label:'Thinner than Inner Clement' },
+    vibe:'Clement west of Park Presidio and Balboa are easy to miss. Still vacant. Still a neighborhood.',
+    spend:{ ticket:'Local grocery and café money', willing:'Residents if you are on their walk.', ceiling:'Destination matcha will not fill a Saturday from the Inner Sunset. Do not underwrite a pilgrimage.' },
+    hours:[
+      { d:'Mon–Fri', t:'Daytime errands. Balboa is a quiet commercial street — staff lean.' },
+      { d:'Saturday', t:'Best walk. Still not Irving.' },
+      { d:'Nights', t:'Thin. Close early.' }
+    ],
+    coffee:{
+      rule:'Low density. Two-block rule is easy to keep.',
+      density:'Low. Feasible if the ticket is local.',
+      wifi:'Optional.',
+      gap:'Vintage, books, a neighborhood café. Not a destination bar.'
+    },
+    missing:['A shop people notice on Balboa','Small retail','A café that does not need Inner Clement crowds'],
+    history:'Thinner cousin of Clement. Vacancy here is missed walk-ins, not a jazz-district stall story.',
+    vs:'Inner Clement has the restaurant strength. Outer Clement has the quieter bay. Downtown is a different planet.',
+    brokers:['Clement west of Park Presidio','Balboa merchants — do not skip'],
+    money:['SF Shines','ADA Access grant','Opportunity Grant'],
+    nearby:['Thinner than Inner Clement','Balboa is easy to miss and still vacant'],
+    survive:'Fewer walk-ins than 6th & Clement. A vintage shop can live. A destination matcha bar may not.'
+  },
+  ocean: {
+    short:'Ocean Ave / SFSU edge',
+    strength:{ n:3, label:'Student strip · calendar is the clock' },
+    vibe:'Ocean Avenue is the retail. Parkmerced is housing — do not underwrite the towers as your customer map.',
+    spend:{ ticket:'Student — $3–6 coffee, cheap lunch', willing:'They will sit if you have Wi-Fi and outlets.', ceiling:'Downtown prices die here. Summer and winter break punch a hole in the week.' },
+    hours:[
+      { d:'Mon–Thu', t:'Class rhythm. Morning and late afternoon. Night study if Wi-Fi is real.' },
+      { d:'Friday', t:'Campus thins. Not a Market Street happy hour.' },
+      { d:'Sat–Sun / breaks', t:'Weaker. Staff to the academic calendar, not a tourist Saturday.' }
+    ],
+    coffee:{
+      rule:'A few student cafés. Not Market Street stacked — but Wi-Fi is the product, not the third espresso blend.',
+      density:'Medium. The gap is seats and power, not another window.',
+      wifi:'Required. If the Wi-Fi is bad, the shop is bad. This is the one corridor where laptop hours are the P&L.',
+      gap:'Coffee + books with working Wi-Fi and outlets. Close when campus closes.'
+    },
+    missing:['Study coffee with power','Books / records for students','A use that survives June and December'],
+    history:'Ocean Ave merchants, not a Parkmerced leasing office. The towers do not make a storefront corridor.',
+    vs:'Downtown coffee sells speed to office. Ocean coffee sells a table to a student. Opposite Wi-Fi story, opposite weekend.',
+    brokers:['Ocean Avenue merchants','Ingleside / SFSU-edge broker — not a Parkmerced leasing office'],
+    money:['Storefront Opportunity Grant','SF Shines','OSB'],
+    nearby:['Student food on Ocean','Parkmerced is housing, not your customer map by itself'],
+    survive:'Ocean Ave can support coffee and books for students. Do not underwrite the towers as retail.'
+  },
+  excelsior: {
+    short:'Excelsior / Outer Mission',
+    strength:{ n:3, label:'Neighborhood Mission · code is the tax' },
+    vibe:'Mission Street south — family, not Valencia. OSB’s grandfathered-code story lives here.',
+    spend:{ ticket:'Family and local — $3–5 coffee, take-out dinner', willing:'Neighbors who already shop the street.', ceiling:'A destination concept is the wrong book. The rehab bill is the tax, not the rent ask.' },
+    hours:[
+      { d:'Mon–Sat', t:'Neighborhood all week. Not a Friday office happy hour.' },
+      { d:'Sunday', t:'Family day. Realer than downtown Saturday.' },
+      { d:'Nights', t:'Earlier than the Inner Mission. Staff lean.' }
+    ],
+    coffee:{
+      rule:'Not saturated. A neighborhood coffee can work if you survive the code upgrade.',
+      density:'Low. The fight is the bay, not the fifth café.',
+      wifi:'Nice, not the story.',
+      gap:'Small retail or coffee that can pay a rehab. The quilt shop / arcade already proved a non-formula use can land.'
+    },
+    missing:['Small retail that survives a code upgrade','Neighborhood coffee','A tenant who budgets ADA and electrical, not just paint'],
+    history:'OSB said it: condition and code. Decades in one family. New tenant almost certainly buys an upgrade.',
+    vs:'Downtown’s problem is plate and stacked coffee. Excelsior’s is the grandfathered interior. Different book, same city.',
+    brokers:['Excelsior Action / corridor broker','OSB — this is their neighborhood example'],
+    money:['Storefront Opportunity Grant (quilt shop / arcade already landed here)','ADA Access grant','SF Shines'],
+    nearby:['Mission St south — neighborhood food, not Valencia'],
+    survive:'OSB said it: condition and code. Survivability is the rehab bill, not the rent ask.'
+  }
+};
+
+function inferCustom(text){
+  const t = (text || '').trim();
+  if (!t) return null;
+  const low = t.toLowerCase();
+  const coffee = /coffee|espresso|latte|café|cafe|chai|matcha|tea|roaster/.test(low);
+  const food = coffee || /restaurant|kitchen|bakery|taquería|taqueria|ice cream|gelato|bar|wine|beer|pizza|noodle|ramen|food|dumpling|hood/.test(low);
+  const clothing = /cloth|apparel|vintage shop|thrift|boutique/.test(low);
+  return {
+    key: coffee ? 'coffee' : food ? 'food' : clothing ? 'retail' : 'retail',
+    label: t.replace(/\s+/g,' '),
+    food,
+    plate: 'small',
+    linger: coffee || /book|record|wine|bar|studio/.test(low),
+    custom: true,
+    capital: food
+      ? 'Food-use. Last tenant decides the bill — Starbucks often strips the shop; a Peet’s or a neighborhood café often leaves steel and sinks. Walk it.'
+      : 'Retail is faster than a kitchen. Confirm last use on PIM so you are not buying a hood you do not need — or missing drains you do.',
+    permit: food
+      ? 'Health + last legal food-use on PIM. OSB has two permitting specialists. Do not wait in that line if the card already answers it.'
+      : 'Retail. Change-of-use if you add or drop a kitchen.',
+    ticket: 'Price it to this neighborhood, not to downtown.'
+  };
+}
+
+function ideaOf(){
+  if (idea === 'custom') return inferCustom(customIdea);
+  return IDEAS[idea] || null;
+}
+
+function ideaKey(){
+  if (idea === 'custom') return ideaOf()?.key || '';
+  return idea;
+}
+
+function foodish(s){
+  return /food|café|cafe|restaurant|taquería|taqueria|pharmacy|take-out|kitchen/i.test(s.use);
+}
+
+function lastUseBuildout(s){
+  const u = (s.use || '').toLowerCase();
+  if (/starbucks|formula retail|pharmacy|walgreens/.test(u)){
+    return { title:'Last tenant likely stripped the shop', body:'Formula retail and Starbucks usually take the counters, sinks, and steel. You are buying a vanilla box and a build-out — not a café that needs paint. That is the difference between servicing what is there and spending $200k+ to put it back. Walk it.' };
+  }
+  if (/peet|philz|ritual/.test(u)){
+    return { title:'Last tenant may have left the infrastructure', body:'A Peet’s-class exit often leaves sinks and steel. You are converting to your aesthetic, not buying a kitchen. Still walk it — “café” on a listing is not a grease interceptor.' };
+  }
+  if (/café|cafe|restaurant|taquería|taqueria|take-out|food|kitchen/.test(u)){
+    return { title:'Last use was food — the fixtures are the question', body:'A neighborhood café sometimes leaves sinks and refrigeration. A restaurant may still have a hood. Clothes do not need that; a kitchen does. “Retail” on a listing can mean packaged goods or a diner — those are different plumbing. PIM, then a walk.' };
+  }
+  if (/apparel|gallery|clothing/.test(u)){
+    return { title:'Last use was dry retail', body:'Fitting rooms and fixtures, not floor drains. Food here means adding plumbing and maybe a hood. Clothes or books are the faster path.' };
+  }
+  if (/office|lobby/.test(u)){
+    return { title:'Tower file — we only care about the ground floor', body:'CoStar, LoopNet, and PropStream talk about the offices above. This pin is street-facing ground-floor retail. That is the gap those tools do not prioritize.' };
+  }
+  return { title:'“Retail” is not a build-out', body:'Listings say retail. That can mean CPG, clothes, or a kitchen. Hood, drains, refrigeration, fitting rooms — last-tenant history is how you know which bill you are walking into.' };
+}
+
+function lastKind(s){
+  const u = (s.use || '').toLowerCase();
+  if (/starbucks|formula retail|pharmacy|walgreens/.test(u)) return 'stripped';
+  if (/café|cafe|restaurant|taquería|taqueria|take-out|food|kitchen/.test(u)) return 'kitchen';
+  if (/apparel|gallery|clothing/.test(u)) return 'dry';
+  if (/office|lobby|under office/.test(u)) return 'tower';
+  return 'vague';
+}
+
+function leftoverLine(s, food){
+  const kind = lastKind(s);
+  if (food){
+    if (kind === 'stripped') return { grade:'hard', label:'Was formula / pharmacy. Expect a stripped box — new sinks and counters.' };
+    if (kind === 'kitchen') return { grade:'good', label:'Was a café or restaurant. Walk it: the kitchen exhaust and sinks may still be there.' };
+    if (kind === 'dry') return { grade:'hard', label:'Was clothes or a gallery. A kitchen here is new plumbing.' };
+    if (kind === 'tower') return { grade:'hard', label:'Ground-floor bay under offices. Confirm it is a shop, not lobby leftover.' };
+    return { grade:'hard', label:'Last use just says “retail.” That does not tell you if there is a floor drain.' };
+  }
+  if (kind === 'kitchen') return { grade:'hard', label:'Last use was food. Dropping the kitchen is a permit question, sometimes easier.' };
+  if (kind === 'stripped') return { grade:'hard', label:'Stripped formula box. Fine for retail — still a large TI if you add food later.' };
+  return { grade:'good', label:'Books or clothes — no restaurant kitchen exhaust to install. Faster permit.' };
+}
+
+function fitSite(s){
+  const c = ideaOf();
+  if (!c) return null;
+  if (s.status === 'occupied') return { grade:'poor', label:'Occupied — skip' };
+  if (s.status === 'unknown') return { grade:'poor', label:'Unknown — not enough to visit yet' };
+  if (s.plate === 'Large floor plate' && c.plate === 'small') return { grade:'poor', label:'Too big — ghost box, not a first shop' };
+  if (c.food && s.corridor === 'downtown' && s.plate === 'Large floor plate') return { grade:'poor', label:'Too big — downtown ghost box' };
+
+  const key = ideaKey();
+  const corr = s.corridor;
+  const leftover = leftoverLine(s, c.food);
+  const gapCoffee = ['fillmore','bayview','excelsior','outersunset','outerrichmond'];
+
+  if (key === 'coffee'){
+    if (experience === 'new' && ['downtown','mission','sunset','richmond'].includes(corr)){
+      return { grade:'hard', label:'Coffee is stacked here. A first shop should not copy the neighbors.' };
+    }
+    if (corr === 'downtown') return leftover.grade === 'good'
+      ? { grade:'good', label:'Weekday traffic is real. Coffee is stacked — your wedge is seats and Wi-Fi, not another window.' }
+      : leftover;
+    if (corr === 'mission' || corr === 'sunset' || corr === 'richmond'){
+      return { grade:'hard', label:'This street already has coffee. You need a reason they walk past the one they love.' };
+    }
+    if (corr === 'tenderloin') return { grade:'hard', label:'Cafés already sit on this block. Price or hours have to be the reason.' };
+    if (gapCoffee.includes(corr)) return { grade:'good', label:'Coffee is actually missing here. Neighborhood prices — not downtown tickets.' };
+    if (corr === 'ocean') return { grade:'good', label:'Student coffee. Wi-Fi and outlets are the product.' };
+  }
+  if (key === 'icecream'){
+    if (corr === 'downtown') return { grade:'hard', label:'Office lunch is weak for ice cream. Tourist edge only.' };
+    if (['mission','sunset','richmond','ocean'].includes(corr)) return leftover.grade === 'good'
+      ? { grade:'good', label:'Weekend and after-school. Not a 7am use.' }
+      : leftover;
+  }
+  if ((key === 'bookstore' || key === 'vintage' || key === 'retail') && !c.food){
+    if (['fillmore','sunset','outersunset','excelsior','ocean','bayview'].includes(corr)){
+      return { grade:'good', label:'This corridor is short on shops that are not food. Fastest permit.' };
+    }
+  }
+  return leftover;
+}
+
+function streetOf(c){
+  if (c && BLOCK[c]) return BLOCK[c];
+  if (corridor !== 'all' && BLOCK[corridor]) return BLOCK[corridor];
+  return null;
+}
+
+function ideaHours(blk){
+  const c = ideaOf();
+  if (!c || !blk) return blk ? blk.hours : [];
+  if (ideaKey() === 'icecream'){
+    return [
+      { d:'Mon–Fri', t:'After-school and lunch. A 7am ice cream window is a hobby.' },
+      { d:'Sat–Sun', t:'The money if the corridor has weekend walk — Mission yes, Market no.' },
+      { d:'Nights', t:'Summer evenings only. Fog-side, close when families go home.' }
+    ];
+  }
+  if (ideaKey() === 'bookstore' || ideaKey() === 'vintage' || ideaKey() === 'retail'){
+    return [
+      { d:'Tue–Sat', t:'Bookshops live on afternoon browse. Monday can be dark.' },
+      { d:'Sunday', t:'Neighborhood corridors yes. Downtown Saturday-Sunday is a shrug.' },
+      { d:'Nights', t:'A reading or a record night is an event, not a base case.' }
+    ];
+  }
+  return blk.hours;
+}
+
+function ideaWifi(blk){
+  const c = ideaOf();
+  if (!c) return blk.coffee.wifi;
+  if (!c.linger) return 'Linger is not this use. Do not build a laptop farm for ice cream.';
+  if (ideaKey() === 'bookstore' || ideaKey() === 'vintage' || ideaKey() === 'retail') return 'Wi-Fi is optional. A chair and a table matter more than a network.';
+  return blk.coffee.wifi;
+}
+
+function ideaGap(blk){
+  const c = ideaOf();
+  if (!c) return blk.coffee.gap;
+  if (ideaKey() === 'coffee' || ideaKey() === 'chai') return blk.coffee.gap;
+  if (ideaKey() === 'bookstore' || ideaKey() === 'vintage' || ideaKey() === 'retail') return blk.missing.find(m => /book|retail|non-food|hang/i.test(m)) || blk.missing[0];
+  if (ideaKey() === 'icecream') return 'Weekend and after-school, neighborhood ticket. Not a downtown morning use.';
+  return blk.missing[0];
+}
+
+function ideaSpend(blk){
+  const c = ideaOf();
+  if (!c) return blk.spend;
+  return {
+    ticket: `${c.ticket} on a street that pays ${blk.spend.ticket}`,
+    willing: blk.spend.willing,
+    ceiling: blk.spend.ceiling
+  };
+}
+
+function suggestionsFor(s){
+  const out = [];
+  const vacant = s.status !== 'occupied' && s.status !== 'unknown';
+  if (!vacant) return [{ grade:'poor', label:'Not a candidate', line:'Occupied or unknown. Do not underwrite a concept on this file.' }];
+  if (s.plate === 'Large floor plate'){
+    out.push({ grade:'poor', label:'First coffee / chai / books', line:'This cube will eat a first shop. Multi-tenant or Vacant to Vibrant — not a 400-sf espresso bar.' });
+    out.push({ grade:'hard', label:'Popup / shared retail', line:'Ghost boxes live on activation grants, not a single-operator P&L.' });
+    return out;
+  }
+  if (s.corridor === 'downtown' && s.walk >= 90){
+    out.push({ grade:'good', label:'Coffee — weekday machine', line:'Mon–Fri 7–9:30 is extremely feasible if you have seats, outlets, and Wi-Fi. The two-block rule is dead here. Your wedge is linger, not another window.' });
+  } else if (['fillmore','bayview','excelsior','outersunset','outerrichmond'].includes(s.corridor)){
+    out.push({ grade:'good', label:'Coffee — corridor gap', line:'This street is not stacked like Market or Valencia. A neighborhood ticket works. Downtown prices will not.' });
+  } else if (s.corridor === 'mission'){
+    out.push({ grade:'hard', label:'Coffee — saturated', line:'People are here. Another café is not the missing thing. Need a wedge: hours, seating, or not-coffee.' });
+  } else if (s.corridor === 'ocean'){
+    out.push({ grade:'good', label:'Coffee — student Wi-Fi', line:'Works if Wi-Fi and outlets are the product. Staff to the academic calendar, not a Friday happy hour.' });
+  } else if (s.corridor === 'tenderloin'){
+    out.push({ grade:'hard', label:'Coffee — already dense', line:'Another café needs a reason (price, hours, language). Survivability is insurance and a tenant who knows the block.' });
+  } else if (s.corridor === 'sunset' || s.corridor === 'richmond'){
+    out.push({ grade:'hard', label:'Coffee — thick already', line:'Irving and Clement already eat. A café only if you have a wedge or a hood that already exists.' });
+  }
+  if (['fillmore','sunset','outersunset','outerrichmond','excelsior','ocean','bayview'].includes(s.corridor)){
+    out.push({ grade:'good', label:'Books / records / vintage', line:'Retail, no hood. Fastest permit. This corridor is short on non-food.' });
+  }
+  if (s.corridor === 'mission'){
+    out.push({ grade:'hard', label:'Books / records', line:'Identity fits. Competition is real. Food-use is the thing to avoid, not the thing to add.' });
+  }
+  if (foodish(s) && s.corridor !== 'downtown'){
+    out.push({ grade:'good', label:'Successor food (chai / ice cream / café)', line:'Last use was food. Confirm the hood on PIM before you fall in love. Capital drops if it is still there.' });
+  }
+  return out.slice(0, 3);
+}
+
+function playHTML(s){
+  const corr = s ? s.corridor : corridor;
+  if (corr === 'all'){
+    return `<div class="play">
+      <p class="kicker">Street read · downtown vs the neighborhoods</p>
+      <h4>Market Street is not the Mission.</h4>
+      <p class="sub">Downtown is a weekday machine and a Saturday shrug — Friday happy hour is real, weekends thin out, and coffee is already stacked (the two-block rule died when Starbucks arrived). The Mission is the opposite clock: weekends and nights, food is not scarce. Fillmore’s gap is daytime. Bayview’s gap is ticket. Ocean’s product is Wi-Fi. Pick a corridor.</p>
+    </div>`;
+  }
+  const blk = streetOf(corr);
+  if (!blk) return '';
+  const c = ideaOf();
+  const spend = ideaSpend(blk);
+  const hours = ideaHours(blk);
+  const wifi = ideaWifi(blk);
+  const gap = ideaGap(blk);
+  const f = s ? fitSite(s) : null;
+  const title = c
+    ? `${c.label} — ${f ? f.label : 'test it against this street'}`
+    : `What could work on ${blk.short}`;
+  const strengthPct = Math.round((blk.strength.n / 5) * 100);
+  return `<div class="play">
+    <p class="kicker">Street read · ${blk.short}${c ? ' · ' + c.label : ''}</p>
+    <h4>${title}</h4>
+    <p class="sub">${blk.vibe}</p>
+    <div class="bars">
+      <div class="barrow">
+        <b>Corridor strength <i>${blk.strength.label}</i></b>
+        <div class="meter"><i style="width:${strengthPct}%"></i></div>
+      </div>
+      <div class="barrow">
+        <b>What they will spend <i>${spend.ticket}</i></b>
+        <p class="sub" style="margin:4px 0 0">${spend.willing} ${spend.ceiling}</p>
+      </div>
+    </div>
+    <h3 class="sec" style="margin-top:14px">When this sidewalk is actually busy</h3>
+    <div class="daygrid">
+      ${hours.map(h => `<b>${h.d}</b><span>${h.t}</span>`).join('')}
+    </div>
+    <h3 class="sec">Coffee density &amp; the two-block rule</h3>
+    <p class="sub">${blk.coffee.rule}<br><br>${blk.coffee.density}</p>
+    <h3 class="sec">Wi-Fi / linger</h3>
+    <p class="sub">${wifi}</p>
+    <h3 class="sec">What is missing — the gap to fill</h3>
+    <p class="sub">${c ? gap : blk.coffee.gap}</p>
+    ${c ? '' : `<ul class="gaplist">${blk.missing.map(m => `<li>${m}</li>`).join('')}</ul>`}
+    <h3 class="sec">History of working this street</h3>
+    <p class="sub">${blk.history}<br><br>${blk.vs}</p>
+    <p class="sub" style="margin-top:10px">Pilot street read — pattern from the sidewalk and the CBDs, not a live sensor. Walk it.</p>
+  </div>`;
+}
+
+function renderExp(){
+  const el = document.getElementById('exp');
+  if (!el) return;
+  el.hidden = !idea;
+  if (el.hidden) return;
+  el.innerHTML = `
+    <button type="button" class="chip ${experience==='new'?'on':''}" data-e="new">First shop</button>
+    <button type="button" class="chip ${experience==='done'?'on':''}" data-e="done">I’ve run this before</button>`;
+  el.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    experience = experience === b.dataset.e ? '' : b.dataset.e;
+    applyIdea();
+  });
+}
+
+function applyIdea(){
+  const box = document.getElementById('customIdea');
+  if (box) box.hidden = idea !== 'custom';
+  renderExp();
+  renderList();
+  if (selected) docket(SITES.find(x => x.id === selected));
+  else docket(null);
+  syncPins();
+}
+
+function renderStreetRead(){
+  const el = document.getElementById('streetRead');
+  if (!el) return;
+  const blk = streetOf(corridor === 'all' ? null : corridor);
+  if (!idea && corridor === 'all'){
+    el.innerHTML = `<div class="streetbox"><strong>Downtown ≠ the neighborhoods</strong>Market is weekday + Friday happy hour. The Mission is weekend and night. Pick a use or a corridor for the street read.</div>`;
+    return;
+  }
+  if (!blk){
+    el.innerHTML = `<div class="streetbox"><strong>Pick a corridor</strong>Hours, ticket, and whether coffee is even missing all change by street.</div>`;
+    return;
+  }
+  const c = ideaOf();
+  el.innerHTML = `<div class="streetbox">
+    <strong>${blk.short}${c ? ' · ' + c.label : ''}</strong>
+    <em>${blk.strength.label}.</em> ${c ? 'Only storefronts you can actually visit. Occupied, unknown, and ghost boxes are hidden.' : blk.coffee.gap}
+  </div>`;
+}
+
+function historyOf(s){
+  const rows = [];
+  rows.push(`Last legal use on this file: ${s.use}.`);
+  if (s.permits && s.permits.length) rows.push(s.permits.map(p => `${p.id} — ${p.what}${p.when ? ' ('+p.when+')' : ''}`).join(' '));
+  else rows.push('No recent permit trail in this pilot — that often means grandfathered code.');
+  rows.push(`Vacancy status ${STATUS[s.status].label}, last checked ${s.last}, confidence ${s.confidence}.`);
+  return rows;
+}
+
+function sitesView(){
+  const q = (document.getElementById('q').value || '').toLowerCase().trim();
+  const rank = { good:0, hard:1, poor:2 };
+  const rows = SITES.filter(s => {
+    if (corridor !== 'all' && s.corridor !== corridor) return false;
+    if (statusFilter !== 'all' && s.status !== statusFilter) return false;
+    if (!q) return true;
+    return [s.name,s.hood,s.block,s.lot,s.apn,s.cbd].join(' ').toLowerCase().includes(q);
+  });
+  if (!ideaOf()) return rows;
+  return rows.filter(s => {
+    const f = fitSite(s);
+    return f && f.grade !== 'poor';
+  }).sort((a,b) => (rank[fitSite(a)?.grade]??9) - (rank[fitSite(b)?.grade]??9));
+}
+
+function renderList(){
+  renderStreetRead();
+  const rows = sitesView();
+  const fits = rows.map(fitSite).filter(Boolean);
+  document.getElementById('stats').innerHTML = `
+    <div><b>${rows.length}</b><i>${ideaOf() ? 'to visit' : 'in view'}</i></div>
+    <div><b>${rows.filter(s=>s.status==='verified').length}</b><i>verified</i></div>
+    <div><b>${ideaOf() ? fits.filter(f=>f.grade==='good').length : rows.filter(s=>s.condition==='unknown').length}</b><i>${ideaOf() ? 'worth a walk' : 'condition unknown'}</i></div>`;
+  if (ideaOf() && !rows.length){
+    document.getElementById('list').innerHTML = `<p class="sub" style="padding:4px 2px">No storefront in this corridor can take that use. Occupied, unknown, and ghost-box plates are hidden. Try another corridor or another use.</p>`;
+    return;
+  }
+  const shown = (selected && listCollapsed) ? rows.filter(s => s.id === selected) : rows;
+  const back = selected && listCollapsed && rows.length > 1
+    ? `<button type="button" class="chip" id="showAll" style="width:100%;margin-bottom:8px">Show all ${rows.length} storefronts</button>`
+    : '';
+  document.getElementById('list').innerHTML = back + shown.map(s => {
+    const f = fitSite(s);
+    return `
+    <button class="card ${selected===s.id?'sel':''}" data-id="${s.id}">
+      <div class="badge"><i style="background:${STATUS[s.status].color}"></i>${STATUS[s.status].label}</div>
+      <div class="addr">${s.name}</div>
+      <div class="meta">${s.hood} · ${s.confidence} confidence · checked ${s.last}</div>
+      ${f ? `<div class="fit ${f.grade}">${f.label}</div>` : ''}
+    </button>`;
+  }).join('');
+  const all = document.getElementById('showAll');
+  if (all) all.onclick = () => { listCollapsed = false; renderList(); };
+  document.querySelectorAll('.card').forEach(btn => btn.onclick = () => select(btn.dataset.id, true));
+}
+
+function renderFilters(){
+  const keys = ['all', ...Object.keys(STATUS)];
+  document.getElementById('filters').innerHTML = keys.map(k => `
+    <button class="chip ${statusFilter===k?'on':''}" data-s="${k}">${k==='all'?'All statuses':STATUS[k].label}</button>`).join('');
+  document.querySelectorAll('#filters .chip').forEach(b => b.onclick = () => {
+    statusFilter = b.dataset.s; renderFilters(); renderList(); syncPins();
+  });
+  document.getElementById('legend').innerHTML = Object.entries(STATUS).map(([k,v]) => `
+    <div><span class="sw" style="background:${v.color}"></span>${v.label}</div>`).join('');
+}
+
+function workflowOf(s){
+  return ({
+    downtown:'Downtown workflow',
+    tenderloin:'Tenderloin corridor',
+    mission:'Mission corridor',
+    fillmore:'Fillmore Jazz District',
+    bayview:'Third Street corridor',
+    sunset:'Inner Sunset / Taraval',
+    richmond:'Clement / Geary',
+    outersunset:'Noriega / Outer Taraval',
+    outerrichmond:'Outer Clement / Balboa',
+    ocean:'Ocean Ave — Parkmerced edge',
+    excelsior:'Neighborhood workflow'
+  })[s.corridor] || 'Corridor';
+}
+
+function pimUrl(s, tab){
+  const q = new URLSearchParams({ search: s.name });
+  if (tab) q.set('tab', tab);
+  return `https://sfplanninggis.org/pim?${q}`;
+}
+
+const CIVIC_LINKS = [
+  { test:/storefront opportunity|opportunity grant|\bsog\b/i, href:'https://www.sf.gov/apply-for-a-grant-to-open-a-new-storefront-lease', note:'Apply on SF.gov · Storefront Opportunity Grant' },
+  { test:/accessible barrier|ada access|ada grant|accessibility/i, href:'https://www.sf.gov/information--ada-compliance-business', note:'ADA help and Accessible Barrier Removal Grant' },
+  { test:/sf shines/i, href:'https://www.sf.gov/information--find-grant-your-small-business', note:'SF Shines and city storefront grants' },
+  { test:/vacant to vibrant|new deal|popup grant/i, href:'https://www.vibrantsf.org/', note:'Vacant to Vibrant · SF New Deal' },
+  { test:/downtown business fund/i, href:'https://www.sf.gov/information--find-grant-your-small-business', note:'City small-business grants' },
+  { test:/shop\s*&\s*dine|shop and dine|loteria/i, href:'https://www.sf.gov/information--find-grant-your-small-business', note:'City small-business programs' },
+  { test:/permit sf/i, href:'https://www.sf.gov/permitsf', note:'Permit SF' },
+  { test:/49 south van ness|permit center/i, href:'https://www.sf.gov/location/permit-center', note:'Permit Center · 49 South Van Ness' },
+  { test:/office of small business|\bosb\b|leasing help/i, href:'https://www.sfosb.org/', note:'Office of Small Business · free leasing help' },
+  { test:/oewd|corridor broker/i, href:'https://www.sf.gov/departments--office-economic-and-workforce-development', note:'OEWD' },
+  { test:/east cut/i, href:'https://www.eastcutcbd.org/', note:'East Cut CBD' },
+  { test:/tlcbd|tenderloin/i, href:'https://tlcbd.org/', note:'Tenderloin Community Benefit District' },
+  { test:/calle 24/i, href:'https://www.calle24sf.org/', note:'Calle 24 Latino Cultural District' },
+  { test:/mission street|mission cbd|mission corridor/i, href:'https://www.sfosb.org/', note:'OSB will intro the Mission corridor' },
+  { test:/fillmore/i, href:'https://www.sfosb.org/', note:'OSB will intro Fillmore CBD' },
+  { test:/inner sunset/i, href:'https://www.sfosb.org/', note:'OSB · Inner Sunset merchants intro' },
+  { test:/clement street merchants|richmond/i, href:'https://www.sfosb.org/', note:'OSB · Richmond corridor intro' },
+  { test:/bayview/i, href:'https://www.sfosb.org/', note:'OSB · Bayview / Third Street intro' },
+  { test:/excelsior/i, href:'https://www.sfosb.org/', note:'OSB · Excelsior corridor intro' },
+  { test:/ocean avenue|ingleside/i, href:'https://www.sfosb.org/', note:'OSB · Ocean Avenue merchants intro' },
+  { test:/noriega|taraval|outer sunset/i, href:'https://www.sfosb.org/', note:'OSB · west-side merchants intro' },
+  { test:/legacy business/i, href:'https://www.sf.gov/information--legacy-business-program', note:'Legacy Business Program' },
+  { test:/broker|merchant|cbd|ncd/i, href:'https://www.sfosb.org/', note:'Free intro · Office of Small Business' },
+  { test:/.*/, href:'https://www.sf.gov/information--find-grant-your-small-business', note:'City grants for small businesses' }
+];
+
+function civicOf(text){
+  return CIVIC_LINKS.find(r => r.test.test(text)) || CIVIC_LINKS[CIVIC_LINKS.length-1];
+}
+
+function civicA(text){
+  if (!text || text === '—' || text === 'None yet'){
+    const fallback = civicOf('grant');
+    return `<a href="${fallback.href}" target="_blank" rel="noreferrer">City grants<em>${fallback.note}</em></a>`;
+  }
+  const { href, note } = civicOf(text);
+  return `<a href="${href}" target="_blank" rel="noreferrer">${text}<em>${note} · already opened for you</em></a>`;
+}
+
+function civicPill(text){
+  const { href } = civicOf(text);
+  return `<a class="pill" href="${href}" target="_blank" rel="noreferrer">${text}</a>`;
+}
+
+function streetKey(s){
+  const m = String(s.name).match(/^(\d+)\s+(.+?)(?:\s+(Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr)\.?)?$/i);
+  return {
+    num: m ? m[1] : '',
+    street: (m ? m[2] : s.name).toUpperCase().replace(/'/g,'').split(/\s+/)[0]
+  };
+}
+
+function sourcesOf(s){
+  const place = `${s.name}, San Francisco, CA`;
+  const g = encodeURIComponent(place);
+  const hist = encodeURIComponent(`${s.name} San Francisco former vacant storefront`);
+  const slug = `${s.name.replace(/\s+/g,'-')}-San-Francisco-CA`;
+  return {
+    google: `https://www.google.com/search?q=${hist}`,
+    maps: `https://www.google.com/maps/search/?api=1&query=${g}`,
+    street: `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${s.lat},${s.lng}`,
+    nearby: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('businesses near ' + place)}`,
+    yelp: `https://www.yelp.com/search?find_desc=&find_loc=${g}`,
+    zillow: `https://www.zillow.com/homes/${encodeURIComponent(slug)}_rb/`,
+    loopnet: `https://www.google.com/search?q=${encodeURIComponent('site:loopnet.com ' + place)}`,
+    crexi: `https://www.google.com/search?q=${encodeURIComponent('site:crexi.com ' + place)}`,
+    businesses: `https://data.sfgov.org/Economy-and-Community/Registered-Business-Locations-San-Francisco/g8m3-pdis/data?q=${encodeURIComponent(s.name)}`,
+    tax: `https://data.sfgov.org/Economy-and-Community/Taxable-Commercial-Spaces/rzkk-54yv/data?q=${encodeURIComponent(s.name)}`,
+    assessor: 'https://online.sfassessor.org/s/rp-property-search',
+    recorder: 'https://recorder.sfgov.org/'
+  };
+}
+
+function srcLink(href, title, note){
+  return `<a href="${href}" target="_blank" rel="noreferrer">${title}<em>${note}</em></a>`;
+}
+
+function fold(title, html, open){
+  return `<details class="fold"${open ? ' open' : ''}><summary>${title}</summary><div class="fold-body">${html}</div></details>`;
+}
+
+function historyBlockHTML(s){
+  const mail = `mailto:sfosb@sfgov.org?subject=${encodeURIComponent('Leasing help · ' + s.name)}&body=${encodeURIComponent('I am looking at ' + s.name + ', Block ' + s.block + ', Lot ' + s.lot + '. I need help reaching the owner or a corridor broker.')}`;
+  return `
+    <p class="sub"><b style="color:var(--ink)">We cannot print the owner’s name.</b> California law: the Assessor does not post it online. A broker charges a fee because they already have it. This file gives you the free path — already pointed at this lot.</p>
+    <div class="src">
+      ${srcLink(mail, 'Email OSB · this address is in the subject', 'sfosb@sfgov.org · free commercial leasing specialist')}
+      ${srcLink('tel:+14155546134', 'Call OSB · 415-554-6134', 'Ask for help reaching the owner of ' + s.name + '.')}
+      ${srcLink('https://www.sfosb.org/', 'Office of Small Business', 'The city’s free intro — not a listing fee.')}
+      ${srcLink('https://recorder.sfgov.org/', 'Recorder · the deed names the owner', 'Search ' + s.name + '. That document is the name.')}
+      ${srcLink('https://online.sfassessor.org/s/rp-property-search', 'Assessor · Block ' + s.block + ' · Lot ' + s.lot, 'Paste block and lot. Still no name online — that is the law.')}
+      ${srcLink(pimUrl(s), 'PIM · parcel / mailing · ' + s.name, 'Closest public owner-adjacent record.')}
+      ${srcLink('https://www.sf.gov/location/permit-center', 'Permit Center · 49 South Van Ness', 'Ask a specialist about this location in person.')}
+    </div>
+    ${historyOf(s).map(h => `<div class="ev"><span>${h}</span></div>`).join('')}
+    ${s.evidence.map(e => `<div class="ev"><b>${e.src} · ${e.when}</b><span>${e.note}</span></div>`).join('')}
+    ${(s.permits.length?s.permits:[{id:'—',what:'No recent permit trail on this pilot file — that often means grandfathered code',when:''}]).map(p => `<div class="ev"><b>${p.id}</b><span>${p.what}${p.when? ' · '+p.when:''}</span></div>`).join('')}
+    <h3 class="sec">Live city records</h3>
+    <p class="sub">Treasurer registered businesses and DBI building permits, queried to this address. A registration is not occupancy.</p>
+    <div class="live" id="liveAgg"><div class="ev"><span>Pulling Treasurer and DBI for this door…</span></div></div>`;
+}
+
+function sourcesHTML(s){
+  const u = sourcesOf(s);
+  return `
+    <p class="sub">Already searched to ${s.name}. You should not have to type the address again.</p>
+    <div class="src">
+      ${srcLink(u.google, 'Google this address + vacancy / former tenant', 'The first thing everyone does. Already queried.')}
+      ${srcLink(u.street, 'Street View of this door', 'The physical check, from here.')}
+      ${srcLink(u.maps, 'Google Maps · this pin', 'Who is on the block right now.')}
+      ${srcLink(u.nearby, 'What’s around this address', 'The neighbor read — Yelp/Maps by another name.')}
+      ${srcLink(u.yelp, 'Yelp at this address', 'Who has been in business here, and reviews that outlived the lease.')}
+      ${srcLink(u.zillow, 'Zillow this parcel', 'Building / sales context. Not a lease.')}
+      ${srcLink(u.loopnet, 'LoopNet mentions of this address', 'Commercial listing trail.')}
+      ${srcLink(u.crexi, 'Crexi mentions of this address', 'The other listing pile.')}
+      ${srcLink(pimUrl(s, 'Building Permits'), 'PIM · building permits on this lot', 'What work was already pulled.')}
+      ${srcLink(pimUrl(s, 'Planning Applications'), 'PIM · planning applications on this lot', 'Change of use, condos, formula retail.')}
+      ${srcLink(u.businesses, 'DataSF · registered businesses at this address', 'Treasurer file — open / closed / DBA.')}
+      ${srcLink(u.tax, 'DataSF · taxable commercial space', 'Vacancy-tax universe. A filing is not occupancy.')}
+      ${srcLink(pimUrl(s), 'PIM · parcel / mailing', 'Closest public owner-adjacent record.')}
+      ${srcLink(u.assessor, `Assessor RP search · Block ${s.block} · Lot ${s.lot}`, 'Paste block and lot. Owner name is not posted online.')}
+      ${srcLink(u.recorder, 'Recorder · deed index', 'The document that names the owner. You still have to search.')}
+    </div>`;
+}
+
+const cityCache = new Map();
+
+function fmtDay(v){
+  if (!v) return '';
+  const d = String(v).slice(0, 10);
+  return d === 'null' ? '' : d;
+}
+
+function bizLine(b){
+  const end = fmtDay(b.dba_end_date) || fmtDay(b.location_end_date) || (b.administratively_closed ? 'closed' : '');
+  const name = b.dba_name || b.ownership_name || 'Registered business';
+  const kind = b.naic_code_description || '';
+  const start = fmtDay(b.dba_start_date);
+  const state = end ? `Closed ${end}` : 'Open on the Treasurer file';
+  return `<div class="ev"><b>${name}${kind ? ' · ' + kind : ''}</b><span>${state}${start ? ' · started ' + start : ''}${b.ownership_name && b.ownership_name !== name ? ' · ' + b.ownership_name : ''}</span></div>`;
+}
+
+function permitLine(p){
+  const id = p.permit_number || p.permit || p.id || 'Permit';
+  const what = p.description || p.permit_type_definition || p.permit_type || 'Building permit';
+  const when = fmtDay(p.filed_date) || fmtDay(p.permit_creation_date) || fmtDay(p.issued_date) || fmtDay(p.completed_date);
+  const status = p.current_status || p.status || '';
+  return `<div class="ev"><b>${id}${status ? ' · ' + status : ''}</b><span>${what}${when ? ' · ' + when : ''}</span></div>`;
+}
+
+async function sodaJson(url){
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(String(r.status));
+  const rows = await r.json();
+  if (!Array.isArray(rows)) throw new Error('not an array');
+  return rows;
+}
+
+async function pullCity(s){
+  if (cityCache.has(s.id)) return cityCache.get(s.id);
+  const { num, street } = streetKey(s);
+  const like = `${num}%${street}%`.replace(/'/g, '');
+  const bizWhere = num
+    ? `upper(full_business_address) like '${like}' AND upper(city)='SAN FRANCISCO'`
+    : `upper(full_business_address) like '%${street}%' AND upper(city)='SAN FRANCISCO'`;
+  const permitWhere = num
+    ? `street_number='${num}' AND upper(street_name)='${street}'`
+    : `block='${String(s.block).replace(/\D/g,'')}'`;
+  const bizQs = `$where=${encodeURIComponent(bizWhere)}&$limit=10&$order=dba_start_date DESC`;
+  const permitQs = `$where=${encodeURIComponent(permitWhere)}&$limit=10&$order=permit_creation_date DESC`;
+  const result = { businesses: [], permits: [], source: 'none', error: '' };
+  try {
+    const [biz, permits] = await Promise.all([
+      sodaJson(`https://data.sfgov.org/resource/g8m3-pdis.json?${bizQs}`),
+      sodaJson(`https://data.sfgov.org/resource/i98e-djp9.json?${permitQs}`).catch(() => [])
+    ]);
+    result.businesses = biz;
+    result.permits = permits;
+    result.source = 'datasf';
+  } catch (e) {
+    try {
+      const r = await fetch(`/api/city/history?address=${encodeURIComponent(s.name)}&block=${encodeURIComponent(s.block)}&lot=${encodeURIComponent(s.lot)}`);
+      const data = await r.json();
+      result.businesses = data.businesses?.rows || data.businesses || [];
+      result.permits = data.permits?.rows || data.permits || [];
+      result.source = data.ok ? 'proxy' : 'none';
+      if (!data.ok) result.error = 'City open data did not return a match from this network.';
+    } catch (err) {
+      result.error = 'Could not reach DataSF from this browser. Use the already-searched links below.';
+    }
+  }
+  cityCache.set(s.id, result);
+  return result;
+}
+
+async function fillLive(s){
+  const el = document.getElementById('liveAgg');
+  if (!el) return;
+  const data = await pullCity(s);
+  if (selected !== s.id) return;
+  const biz = data.businesses || [];
+  const permits = data.permits || [];
+  if (!biz.length && !permits.length){
+    el.innerHTML = `<div class="ev"><span>${data.error || 'No Treasurer or DBI row matched this exact door. That is common when the filing uses a suite, a corner address, or a different street suffix. Use the DataSF and PIM links — they are already searched.'}</span></div>`;
+    return;
+  }
+  el.innerHTML = `
+    ${biz.length ? `<p class="sub"><b style="color:var(--ink)">Who has been in business here</b> · Treasurer registration</p>${biz.map(bizLine).join('')}` : '<div class="ev"><span>No registered-business row on this exact street number. Try the DataSF link — suite and corner addresses hide.</span></div>'}
+    ${permits.length ? `<p class="sub" style="margin-top:12px"><b style="color:var(--ink)">Work already pulled</b> · DBI building permits</p>${permits.map(permitLine).join('')}` : ''}`;
+}
+
+function docket(s){
+  const panel = document.getElementById('docket');
+  if (!s){
+    const c = ideaOf();
+    panel.innerHTML = `<div class="empty">
+      <p class="kicker">Start here</p>
+      <h2>${c ? 'Click a storefront that could work.' : 'Click a storefront.'}</h2>
+      <p>${c
+        ? `You asked for a ${c.label.toLowerCase()}. The list on the left is only doors worth a visit. Open one to see the file — last use, city records, and whether this sidewalk can support that shop.`
+        : `This panel becomes the file for one ground-floor shop: is it empty, who was last here, and can a business live on that sidewalk.`}</p>
+      <ul>
+        <li>Click a pin on the map, or an address on the left.</li>
+        ${c ? '' : '<li>Or choose what you want to open — we’ll hide the doors that cannot take it.</li>'}
+      </ul>
+    </div>`;
+    panel.classList.remove('open');
+    return;
+  }
+  const cond = s.condition === 'unknown' ? 'Unknown — records cannot see inside' : s.condition;
+  const c = ideaOf();
+  const f = fitSite(s);
+  const blk = BLOCK[s.corridor] || BLOCK.excelsior;
+  const survive = s.walk >= 90 ? 'High walk. People are already on this sidewalk.' : s.walk >= 80 ? 'Decent walk. The concept still has to earn the block.' : 'Thinner walk. A destination use has to bring its own crowd.';
+  const last = lastUseBuildout(s);
+  const bayHTML = `
+    <div class="grid2">
+      <div class="kv"><b>Last legal use</b><span>${s.use}</span></div>
+      <div class="kv"><b>Zoning</b><span>${s.zoning}</span></div>
+      <div class="kv"><b>Floor plate</b><span>${s.plate} · ${s.sqft} sf</span></div>
+      <div class="kv"><b>Condition</b><span>${cond}</span></div>
+      <div class="kv"><b>Walk / transit</b><span>${s.walk} walk · ${s.transit} transit</span></div>
+      <div class="kv"><b>Parking</b><span>${s.parking}</span></div>
+    </div>
+    <div class="warn"><b>Is this space actionable?</b><br>${s.conditionNote}<br><br>${s.capital}</div>
+    <div class="warn"><b>${last.title}</b><br>${last.body}</div>`;
+  const peopleHTML = `
+    <p class="sub">${survive}<br>${blk.survive}<br>Rent on file: ${s.rent}. That is not a lease. Walk Score is not a P&amp;L.</p>
+    <h3 class="sec">Who can give you money</h3>
+    <div class="src">${blk.money.map(civicA).join('')}</div>
+    <div class="pills" style="margin-top:8px">${(s.programs.filter(p => p && p !== '—').length?s.programs.filter(p => p && p !== '—'):['City grants']).map(civicPill).join('')}</div>
+    <h3 class="sec">Brokers &amp; humans</h3>
+    <div class="src">${blk.brokers.map(civicA).join('')}</div>
+    <p class="sub">The first call is often a broker — that is the fee. The free path is <a href="https://www.sfosb.org/" target="_blank" rel="noreferrer">Office of Small Business</a>, then the <a href="https://www.sf.gov/location/permit-center" target="_blank" rel="noreferrer">Permit Center at 49 South Van Ness</a>.</p>
+    <h3 class="sec">This block</h3>
+    ${blk.nearby.map(n => `<div class="ev"><span>${n}</span></div>`).join('')}`;
+  const noteHTML = `
+    <p class="sub">You are on the sidewalk. What did you see? Condition still needs a human. This stays on this browser.</p>
+    <textarea id="noteBox" placeholder="Vacant bay / papered / lot / who is next door / dated photo note">${notes[s.id]||''}</textarea>
+    <button class="btn line" id="saveNote" style="margin-top:8px;width:100%">Save field note</button>`;
+  panel.innerHTML = `<div class="file">
+    <p class="kicker">File BB-${s.corridor.slice(0,3).toUpperCase()}-${s.block}-${s.lot} · ${workflowOf(s)}</p>
+    <h2>${s.name}</h2>
+    <p class="sub">${s.hood} · ${s.cbd}<br>Block ${s.block} · Lot ${s.lot} · APN ${s.apn}</p>
+    <div class="pills">
+      <span class="pill">${STATUS[s.status].label}</span>
+      <span class="pill">${s.confidence} confidence</span>
+      <span class="pill">Last checked ${s.last}</span>
+    </div>
+    <div class="meter"><i style="width:${s.confidence}%"></i></div>
+    ${c && f ? `<div class="warn"><b>${c.label} — ${f.label}</b><br>${c.capital}<br>${c.permit}</div>` : ''}
+    ${c ? '' : fold('What could work', suggestionsFor(s).map(g => `<div class="ev"><b class="fit ${g.grade}" style="display:block;margin:0 0 4px">${g.label}</b><span>${g.line}</span></div>`).join(''), false)}
+    ${fold('The bay', bayHTML, true)}
+    ${fold('Street read', playHTML(s), !!c)}
+    ${fold('History of this space', historyBlockHTML(s), false)}
+    ${fold('Already searched', sourcesHTML(s), false)}
+    ${fold('Money & people', peopleHTML, false)}
+    ${fold('Field note', noteHTML, false)}
+    <div class="file-next">
+      <h3 class="sec" style="margin-top:0">Next step</h3>
+      <p class="sub" style="margin-bottom:10px">${s.next}</p>
+      <div class="actions">
+        <a class="btn" href="${pimUrl(s)}" target="_blank" rel="noreferrer">Property file · ${s.name}</a>
+        <a class="btn alt" href="${pimUrl(s, 'Zoning Information')}" target="_blank" rel="noreferrer">Zoning for this lot</a>
+        <a class="btn line" href="${pimUrl(s, 'Building Permits')}" target="_blank" rel="noreferrer">Building permits on this lot</a>
+        <a class="btn line" href="${pimUrl(s, 'Planning Applications')}" target="_blank" rel="noreferrer">Planning applications on this lot</a>
+      </div>
+      <p class="sub">Already searched to this address. Permit Center is 49 South Van Ness if you need a person.</p>
+    </div>
+  </div>`;
+  panel.classList.add('open');
+  const save = document.getElementById('saveNote');
+  if (save) save.onclick = () => {
+    notes[s.id] = document.getElementById('noteBox').value;
+    localStorage.setItem('blockbook-notes', JSON.stringify(notes));
+  };
+  fillLive(s);
+}
+
+function select(id, fly){
+  selected = id;
+  listCollapsed = true;
+  const s = SITES.find(x => x.id === id);
+  renderList();
+  docket(s);
+  syncPins();
+  if (fly && s){
+    map.flyTo({ center:[s.lng,s.lat], zoom:Math.max(map.getZoom(), 16.2), pitch:50, essential:true, duration:900 });
+  }
+  history.replaceState(null,'',`#${s.corridor}/${s.id}`);
+}
+
+function pinEl(s, civic){
+  const el = document.createElement('button');
+  el.className = 'pin' + (civic ? ' civic' : '');
+  el.title = s.name;
+  if (!civic) el.style.background = STATUS[s.status].color;
+  el.onclick = e => { e.stopPropagation(); if (!civic) select(s.id, true); };
+  return el;
+}
+
+function placeMarkers(){
+  markers.forEach(m => m.remove());
+  markers.clear();
+  SITES.forEach(s => {
+    const m = new maplibregl.Marker({ element: pinEl(s), anchor:'center' })
+      .setLngLat([s.lng, s.lat]).addTo(map);
+    markers.set(s.id, m);
+  });
+  CIVIC.forEach(c => {
+    const m = new maplibregl.Marker({ element: pinEl(c, true), anchor:'center' })
+      .setPopup(new maplibregl.Popup({ offset:12 }).setHTML(`<b>${c.name}</b><br>${c.blurb}`))
+      .setLngLat([c.lng, c.lat]).addTo(map);
+    markers.set(c.id, m);
+  });
+  syncPins();
+}
+
+function syncPins(){
+  const vis = new Set(sitesView().map(s => s.id));
+  SITES.forEach(s => {
+    const el = markers.get(s.id)?.getElement();
+    if (!el) return;
+    el.style.display = vis.has(s.id) ? '' : 'none';
+    el.classList.toggle('on', selected === s.id);
+  });
+}
+
+function flyCorridor(){
+  const c = CAM[corridor];
+  if (c && map) map.flyTo({ ...c, essential:true, duration:1100 });
+}
+
+function setCorridor(c){
+  corridor = c;
+  statusFilter = 'all';
+  const sel = document.getElementById('corridorSel');
+  if (sel && sel.value !== c) sel.value = c;
+  selected = null;
+  listCollapsed = false;
+  docket(null);
+  renderList();
+  syncPins();
+  flyCorridor();
+}
+
+function speak(text){
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.05;
+    u.pitch = 1;
+    window.speechSynthesis.speak(u);
+  } catch (e) { /* demo still works if speech is blocked */ }
+}
+
+function setHeard(text){
+  const el = document.getElementById('heard');
+  if (!el) return;
+  el.textContent = text || '';
+  el.classList.toggle('on', !!text);
+}
+
+function setIdeaVoice(key, custom){
+  const sel = document.getElementById('idea');
+  if (key === 'custom'){
+    idea = 'custom';
+    customIdea = custom || '';
+    sel.value = 'custom';
+    const box = document.getElementById('customIdea');
+    box.value = customIdea;
+  } else {
+    idea = key;
+    customIdea = '';
+    sel.value = key;
+  }
+  applyIdea();
+}
+
+function voiceSite(text){
+  const t = text.toLowerCase();
+  const hit = SITES.find(s => {
+    const n = s.name.toLowerCase();
+    return t.includes(n) || t.includes(n.replace(' street','').replace(' avenue','').replace(' boulevard',''));
+  });
+  return hit || null;
+}
+
+function hearCommand(raw){
+  const t = raw.toLowerCase().replace(/[?.!,]/g, ' ').replace(/\s+/g, ' ').trim();
+  setHeard('Heard: “' + raw.trim() + '”');
+  const said = [];
+
+  const corridors = [
+    ['outer richmond','outerrichmond'],['outer sunset','outersunset'],
+    ['the mission','mission'],['mission','mission'],
+    ['downtown','downtown'],['tenderloin','tenderloin'],
+    ['fillmore','fillmore'],['bayview','bayview'],
+    ['sunset','sunset'],['richmond','richmond'],
+    ['ocean','ocean'],['parkmerced','ocean'],
+    ['excelsior','excelsior'],['citywide','all']
+  ];
+  for (const [phrase, key] of corridors){
+    if (t.includes(phrase)){ setCorridor(key); said.push(BLOCK[key]?.short || key); break; }
+  }
+
+  const uses = [
+    ['ice cream','icecream'],['matcha','matcha'],['chai','chai'],
+    ['coffee','coffee'],['bookstore','bookstore'],['vintage','vintage'],
+    ['record','record'],['book cafe','bookcafe'],['bookstore cafe','bookcafe'],
+    ['artisan','artisan']
+  ];
+  let useSet = false;
+  for (const [phrase, key] of uses){
+    if (t.includes(phrase)){ setIdeaVoice(key); said.push(IDEAS[key].label); useSet = true; break; }
+  }
+  if (!useSet){
+    const m = t.match(/(?:open|want to open|start|looking for)\s+(?:a |an )?(.+?)(?: in | on | downtown| mission| the |$)/);
+    if (m && m[1] && m[1].length > 2 && !/coffee|shop downtown|this|that/.test(m[1])){
+      setIdeaVoice('custom', m[1].trim());
+      said.push(m[1].trim());
+      useSet = true;
+    }
+  }
+
+  const site = voiceSite(t);
+  if (site && (/open|show|go to|take me|pull|history|file/.test(t) || /\d/.test(t))){
+    if (site.corridor !== corridor) setCorridor(site.corridor);
+    select(site.id, true);
+    said.push(site.name);
+    const leftover = leftoverLine(site, !!(ideaOf() && ideaOf().food));
+    speak(`${site.name}. ${leftover.label}`);
+    return;
+  }
+
+  if (/history|read the street|what.?s missing|street read/.test(t)){
+    const blk = streetOf(corridor === 'all' ? null : corridor);
+    const s = selected ? SITES.find(x => x.id === selected) : null;
+    if (s){
+      speak(`${s.name}. Last legal use: ${s.use}. ${leftoverLine(s, !!(ideaOf()&&ideaOf().food)).label}`);
+    } else if (blk){
+      speak(`${blk.short}. ${blk.strength.label}. ${blk.coffee.gap}`);
+    }
+    return;
+  }
+
+  if (said.length){
+    const n = ideaOf() ? sitesView().length : 0;
+    speak(said.join(', ') + (n ? `. ${n} bays to visit.` : '.'));
+    return;
+  }
+  speak('Try coffee shop downtown, or open 101 Spear.');
+}
+
+function bootVoice(){
+  const btn = document.getElementById('micBtn');
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Rec){
+    btn.textContent = 'Talk · Chrome only';
+    btn.disabled = true;
+    return;
+  }
+  const rec = new Rec();
+  rec.lang = 'en-US';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  rec.onstart = () => { btn.classList.add('on'); btn.textContent = 'Listening…'; };
+  rec.onend = () => { btn.classList.remove('on'); btn.textContent = 'Talk'; };
+  rec.onerror = () => { btn.classList.remove('on'); btn.textContent = 'Talk'; setHeard('Mic blocked or nothing heard. Type it instead.'); };
+  rec.onresult = e => {
+    const said = e.results[0] && e.results[0][0] && e.results[0][0].transcript;
+    if (said) hearCommand(said);
+  };
+  btn.onclick = () => {
+    try { rec.abort(); } catch (e) {}
+    rec.start();
+  };
+}
+
+function setBasemap(mode){
+  basemap = mode;
+  document.querySelectorAll('#basemap button').forEach(b => b.classList.toggle('on', b.dataset.b === mode));
+  document.documentElement.dataset.theme = mode === 'night' ? 'night' : 'day';
+  const keep = { center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
+  map.setStyle(STYLES[mode]);
+  map.once('style.load', () => {
+    map.jumpTo(keep);
+    placeMarkers();
+  });
+}
+
+function boot(){
+  renderFilters();
+  renderList();
+  docket(null);
+
+  map = new maplibregl.Map({
+    container: 'map',
+    style: STYLES.day,
+    center: CAM.all.center,
+    zoom: CAM.all.zoom,
+    pitch: CAM.all.pitch,
+    bearing: CAM.all.bearing,
+    maxBounds: [[-122.55, 37.68], [-122.32, 37.86]],
+    attributionControl: true
+  });
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch:true }), 'top-right');
+  map.addControl(new maplibregl.ScaleControl({ maxWidth:120, unit:'imperial' }), 'top-left');
+
+  map.on('load', () => {
+    placeMarkers();
+    document.getElementById('load').classList.add('hide');
+    requestAnimationFrame(() => map.resize());
+    const hash = location.hash.slice(1).split('/')[1];
+    if (hash && SITES.some(s => s.id === hash)) select(hash, true);
+  });
+  map.on('click', e => {
+    const f = e.originalEvent?.target?.closest?.('.pin');
+    if (!f) { selected = null; listCollapsed = false; renderList(); docket(null); syncPins(); }
+  });
+  window.addEventListener('resize', () => map.resize());
+
+  document.getElementById('corridorSel').onchange = e => setCorridor(e.target.value);
+  document.querySelectorAll('#basemap button').forEach(b => b.onclick = () => setBasemap(b.dataset.b));
+  document.getElementById('q').oninput = () => { renderList(); syncPins(); };
+  document.getElementById('idea').onchange = e => {
+    idea = e.target.value;
+    if (idea !== 'custom') customIdea = '';
+    applyIdea();
+    if (idea === 'custom') document.getElementById('customIdea').focus();
+  };
+  document.getElementById('customIdea').oninput = e => {
+    customIdea = e.target.value;
+    applyIdea();
+  };
+  document.getElementById('howBtn').onclick = () => document.getElementById('modal').classList.add('on');
+  document.getElementById('closeHow').onclick = () => document.getElementById('modal').classList.remove('on');
+  document.getElementById('modal').onclick = e => { if (e.target.id==='modal') e.target.classList.remove('on'); };
+  document.getElementById('pitchBtn').onclick = () => document.getElementById('pitch').classList.add('on');
+  document.getElementById('closePitch').onclick = () => document.getElementById('pitch').classList.remove('on');
+  document.getElementById('pitch').onclick = e => { if (e.target.id==='pitch') e.target.classList.remove('on'); };
+  bootVoice();
+}
+
+boot();
+</script>
+</body>
+</html>
