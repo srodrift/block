@@ -4,7 +4,13 @@ A ground-floor storefront case file for San Francisco. Built for the Abundance S
 
 The map exists. The listing exists. The vacancy tax exists. The file does not. Block Book is that file.
 
-## Run
+## Live (anyone can open)
+
+- Slides: https://srodrift.github.io/block/
+- Map: https://srodrift.github.io/block/blockbook.html
+- Repo: https://github.com/srodrift/block
+
+## Run locally
 
 ```bash
 npm install
