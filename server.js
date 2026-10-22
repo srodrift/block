@@ -1,6 +1,9 @@
 import express from 'express';
+import hushwork from './hushwork/routes.js';
 
 const app = express();
+app.use('/api/hushwork', hushwork);
+app.get('/hushwork', (_req, res) => res.sendFile('index.html', { root: 'hushwork/public' }));
 app.use(express.static('.'));
 app.get('/', (_req, res) => res.redirect('/blockbook.html'));
 

@@ -20,7 +20,6 @@ export const DEMO_PROFILE = Object.freeze({
   bank_balance: '$61,800',
   investment_budget: '$80,000',
   max_monthly_rent: '$7,500',
-  business_type: 'café',
   business_plan_summary: 'Neighborhood bakery + coffee counter, 6 staff, opening Q2 2027.',
   personal_guarantee_willing: 'yes',
 });

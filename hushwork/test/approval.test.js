@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { createHushwork } from '../core.js';
 
 const HOUR = 3600_000;
-const TEMPLATE = 'Hello, I am {{legal_name}} ({{email}}). I am interested in the Mission St storefront for a {{business_type}}. Could we schedule a showing?';
+const TEMPLATE = 'Hello, I am {{legal_name}} ({{email}}). I am interested in the Mission St storefront for my business: {{business_plan_summary}}. Could we schedule a showing?';
 
 function setup() {
   let t = Date.parse('2026-10-22T13:00:00Z');
   const clock = { now: () => t, advance: (ms) => { t += ms; } };
   const v = createHushwork({ now: clock.now });
-  for (const field of ['legal_name', 'email', 'business_type']) {
+  for (const field of ['legal_name', 'email', 'business_plan_summary']) {
     v.grantConsent({ field, recipientId: 'mission_landlord', purpose: 'lease_inquiry', ttlMs: 24 * HOUR });
   }
   const d = v.prepareDraft({ recipientId: 'mission_landlord', purpose: 'lease_inquiry', template: TEMPLATE });
@@ -33,7 +33,7 @@ test('consent card shows exact message, destination, included and excluded field
   const { card } = setup();
   assert.match(card.payload, /Maya Okafor/);
   assert.equal(card.destination, 'sim://outbox/mission_landlord');
-  assert.deepEqual(card.includedFields.sort(), ['business_type', 'email', 'legal_name']);
+  assert.deepEqual(card.includedFields.sort(), ['business_plan_summary', 'email', 'legal_name']);
   for (const f of ['ssn', 'max_monthly_rent', 'investment_budget', 'bank_balance']) assert.ok(card.excludedFields.includes(f), f);
 });
 
