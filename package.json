@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test:veyra": "node --test veyra/test/*.test.js"
+    "test:hushwork": "node --test hushwork/test/*.test.js",
+    "snapshot": "node hushwork/scripts/snapshot.js"
   },
   "dependencies": {
     "express": "^4.19.2"

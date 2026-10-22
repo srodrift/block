@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createVeyra } from '../core.js';
+import { createHushwork } from '../core.js';
 
 const HOUR = 3600_000;
 
 function setup() {
   let t = Date.parse('2026-10-22T13:00:00Z');
   const clock = { now: () => t, advance: (ms) => { t += ms; } };
-  const v = createVeyra({ now: clock.now });
+  const v = createHushwork({ now: clock.now });
   // User consents (via consent UI) to the legit landlord for lease_inquiry
   for (const field of ['legal_name', 'email', 'phone', 'business_plan_summary']) {
     v.grantConsent({ field, recipientId: 'mission_landlord', purpose: 'lease_inquiry', ttlMs: 24 * HOUR });
@@ -137,14 +137,15 @@ test('audit log never contains vault values', () => {
   v.disclose({ recipientId: 'valencia_broker', purpose: 'lease_inquiry', template: '{{ssn}} {{max_monthly_rent}}' });
   v.disclose({ recipientId: 'mission_landlord', purpose: 'lease_inquiry', template: '{{email}}' });
   v.disclose({ recipientId: 'mission_landlord', purpose: 'lease_inquiry', template: 'raw 900-12-3456' });
-  v.budgetCheck(INJECTED_LISTING);
+  v.budgetCheck('valencia_1');
   assertNoSecretsIn(v, 'audit log', v.auditLog());
 });
 
 test('budget check is coarse, uses server listing data, and is rate-limited', () => {
   const { v } = setup();
-  assert.deepEqual(v.budgetCheck({ id: 'a', askingRentMonthly: 6000 }), { result: 'within_range' });
-  assert.deepEqual(v.budgetCheck({ id: 'b', askingRentMonthly: 9200 }), { result: 'over_range' });
-  assert.deepEqual(v.budgetCheck({ id: 'c' }), { result: 'unknown' });
-  assert.equal(v.budgetCheck({ id: 'd', askingRentMonthly: 7000 }).result, 'refused');
+  assert.equal(v.budgetCheck('mission_1').result, 'within_range'); // 6800 <= 7500
+  assert.equal(v.budgetCheck('valencia_1').result, 'over_range'); // 9200 > 7500
+  assert.equal(v.budgetCheck({ askingRentMonthly: 7499 }).result, 'refused', 'agent cannot supply its own number');
+  assert.equal(v.budgetCheck('mission_1').result, 'within_range');
+  assert.equal(v.budgetCheck('mission_1').result, 'refused', 'rate limit');
 });
