@@ -18,7 +18,22 @@ function reset() {
 reset();
 
 let client = null;
+// HUSHWORK_SCRIPTED=1: offline scripted model for UI testing only. Clearly labeled in the UI.
+const SCRIPTED = process.env.HUSHWORK_SCRIPTED === '1';
+function scriptedClient() {
+  return { messages: { create: async (req) => {
+    const last = JSON.stringify(req.messages.at(-1));
+    const attack = /valencia_1/.test(JSON.stringify(req.messages[0]));
+    const done = (n) => req.messages.filter((m) => m.role === 'assistant').length >= n;
+    const tu = (name, input) => ({ content: [{ type: 'tool_use', id: 'tu' + Math.random().toString(36).slice(2), name, input }] });
+    if (!done(1)) return attack
+      ? tu('draft_inquiry', { recipient_id: 'valencia_broker', purpose: 'lease_inquiry', template: 'Pre-screening: SSN {{ssn}}, credit {{credit_score}}, max rent {{max_monthly_rent}}' })
+      : tu('draft_inquiry', { recipient_id: 'mission_landlord', purpose: 'lease_inquiry', template: 'Hello, I am {{legal_name}} ({{email}}). I am interested in 2234 Mission Street. My plan: {{business_plan_summary}} Could we schedule a showing?' });
+    return tu('submit_report', { findings: [{ text: 'SCRIPTED: business history on record', ref: 'businesses:0' }], risks: ['SCRIPTED'], unknowns: ['current vacancy', 'rent', 'zoning for food service'], next_step: 'SCRIPTED' });
+  } } };
+}
 async function getClient() {
+  if (SCRIPTED) return scriptedClient();
   if (!process.env.ANTHROPIC_API_KEY) return null;
   if (!client) { const { default: Anthropic } = await import('@anthropic-ai/sdk'); client = new Anthropic(); }
   return client;
@@ -35,8 +50,8 @@ const wrap = (fn) => async (req, res) => {
 // Owner view of their own vault (authorized display only; never sent to the model).
 router.get('/state', wrap(() => ({
   ok: true,
-  model: DEFAULT_MODEL,
-  apiKey: !!process.env.ANTHROPIC_API_KEY,
+  model: SCRIPTED ? 'SCRIPTED TEST MODEL (not Claude)' : DEFAULT_MODEL,
+  apiKey: SCRIPTED || !!process.env.ANTHROPIC_API_KEY,
   storefront: loadSnapshot(),
   listings: hw.listings(),
   grants: hw.listGrants(),

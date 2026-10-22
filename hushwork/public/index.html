@@ -1,1 +1,337 @@
-<!doctype html><title>hushwork</title>placeholder
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>hushwork</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f3ea; --card:#fffdf8; --ink:#1f2421; --muted:#6b6f68; --line:#e4ddcd;
+  --green:#1f4d3a; --green-soft:#e6efe9; --amber:#8a5a12; --amber-soft:#f6ecd9;
+  --red:#9b2c22; --red-soft:#f7e3df; --private:#2b2f3a; --private-soft:#ecebf3;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.wordmark{font:600 34px/1 Fraunces,serif;letter-spacing:-.02em;color:var(--green)}
+.wordmark span{color:var(--ink)}
+.tag{font:italic 400 17px Fraunces,serif;color:var(--muted)}
+.status{font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.full{grid-column:1/-1}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px}
+section.private{background:linear-gradient(180deg,var(--private-soft),var(--card) 60%);border-color:#d6d4e2}
+h2{font:600 19px Fraunces,serif;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+.num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;font:600 12px Inter}
+.private .num{background:var(--private)}
+.sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.chip{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:99px;border:1px solid}
+.chip.public{color:var(--green);border-color:#b9d1c3;background:var(--green-soft)}
+.chip.unverified{color:var(--amber);border-color:#e7cf9f;background:var(--amber-soft)}
+.chip.private{color:var(--private);border-color:#c9c7da;background:#fff}
+.chip.block{color:var(--red);border-color:#e7b9b1;background:var(--red-soft)}
+.chip.ok{color:var(--green);border-color:#b9d1c3;background:var(--green-soft)}
+.rec{border-top:1px solid var(--line);padding:8px 0;font-size:13.5px}
+.rec:first-child{border-top:0}
+.rec b{font-weight:600}
+.rec small{color:var(--muted)}
+a{color:var(--green)}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1}
+button{font:600 14px Inter;padding:10px 16px;border-radius:10px;border:1px solid var(--green);background:var(--green);color:#fff;cursor:pointer}
+button.ghost{background:transparent;color:var(--green)}
+button.danger{background:var(--red);border-color:var(--red)}
+button.small{padding:5px 10px;font-size:12px}
+button:disabled{opacity:.5;cursor:wait}
+.vault{font-size:13px;margin-top:14px;padding:12px;border:1px dashed #c9c7da;border-radius:10px;background:#fff}
+.vault .lock{font-weight:600;color:var(--private)}
+.listing{padding:12px;border:1px solid var(--line);border-radius:10px;margin-top:10px;font-size:13.5px}
+.listing p{margin:6px 0 0;color:var(--muted)}
+ul{margin:6px 0 0;padding-left:18px}
+li{margin:4px 0}
+.msg{white-space:pre-wrap;font:14px/1.6 Inter;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin:10px 0}
+.fields{font-size:13px}
+.fields span{display:inline-block;margin:2px 4px 2px 0}
+.mono{font:12px/1.5 'JetBrains Mono',monospace}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.proof{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+@media (max-width:860px){.proof{grid-template-columns:1fr}}
+.panel{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff;font-size:13.5px}
+.panel h3{margin:0 0 6px;font:600 15px Fraunces,serif}
+.big{font:600 15px Inter;margin:6px 0}
+.big.ok{color:var(--green)} .big.bad{color:var(--red)} .big.warn{color:var(--amber)}
+.empty{color:var(--muted);font-size:13px;font-style:italic}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+.err{color:var(--red);font-size:13px;margin-top:8px}
+footer{margin-top:28px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="wordmark">hush<span>work.</span></div>
+      <div class="tag">Your agent works. Your secrets don't travel.</div>
+    </div>
+    <div class="status" id="status">Loading…</div>
+  </header>
+
+  <div class="grid">
+    <!-- 1 -->
+    <section id="s1">
+      <h2><span class="num">1</span>Your opportunity</h2>
+      <p class="sub">One San Francisco storefront. <span class="chip public">Public records</span> show history, not current vacancy or rent.</p>
+      <div id="storefront"><div class="empty">Loading records…</div></div>
+      <label for="listing">Broker listing to investigate</label>
+      <select id="listing"></select>
+      <div id="listingBox"></div>
+    </section>
+
+    <!-- 2 -->
+    <section class="private" id="s2">
+      <h2><span class="num">2</span>Your private profile</h2>
+      <p class="sub">Stored only on the trusted server. <b>The AI never receives these values.</b> It sees placeholders like <span class="mono">{{max_monthly_rent}}</span>.</p>
+      <div class="row">
+        <div><label for="biz">Business type (shared with agent)</label><input id="biz" value="café"></div>
+      </div>
+      <div class="row">
+        <div><label for="budget">Investment budget <span class="chip private">private</span></label><input id="budget" value="$80,000"></div>
+        <div><label for="rent">Max monthly rent <span class="chip private">private</span></label><input id="rent" value="$7,500"></div>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="ghost" id="saveProfile">Save to vault</button></div>
+      <div class="vault" id="vault"></div>
+    </section>
+
+    <!-- 3 -->
+    <section class="full" id="s3">
+      <h2><span class="num">3</span>Agent investigation</h2>
+      <p class="sub">Claude reads the public records and the unverified listing, runs a coarse budget check, and drafts an inquiry using placeholders only.</p>
+      <button id="investigate">Investigate this storefront</button>
+      <div id="report" style="margin-top:14px"></div>
+    </section>
+
+    <!-- 4 -->
+    <section class="full" id="s4">
+      <h2><span class="num">4</span>Approve action</h2>
+      <p class="sub">You approve the <b>exact</b> message. Any change to the text, recipient, or purpose voids the approval. Delivery is simulated.</p>
+      <div id="consent"><div class="empty">No draft yet. Run the investigation first.</div></div>
+      <div style="margin-top:14px">
+        <label>Standing grants (field × recipient × purpose × expiry)</label>
+        <div id="grants"></div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="full" id="s5">
+      <h2><span class="num">5</span>Privacy proof</h2>
+      <p class="sub">A second listing for the same storefront hides a prompt injection telling the agent to send your SSN, credit score, bank balance and max rent to its broker. This runs the real agent on it, then attacks the gate directly.</p>
+      <div class="row" style="flex:0"><button class="danger" id="attack" style="flex:0 0 auto">Run Privacy Attack Test</button><button class="ghost small" id="reset" style="flex:0 0 auto">Reset demo</button></div>
+      <div id="proof"></div>
+      <div style="margin-top:18px">
+        <label>Audit log (real security decisions, field names only, never values)</label>
+        <div id="audit"></div>
+      </div>
+      <div style="margin-top:18px">
+        <label>Outbox (what actually left the system)</label>
+        <div id="outbox"></div>
+      </div>
+    </section>
+  </div>
+  <footer>Hackathon prototype. In-memory session vault, simulated delivery, synthetic personal data. Prompt-injection defense here is architectural (the model never holds secrets; trusted code gates egress). It does not claim immunity to every attack.</footer>
+</div>
+
+<script>
+const API = '/api/hushwork';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let state = null, draft = null, approval = null;
+
+async function call(path, body) {
+  const r = await fetch(API + path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ ok: false, error: 'bad response' }));
+  if (!r.ok || j.ok === false) throw new Error(j.error || r.statusText);
+  return j;
+}
+async function busy(btn, label, fn) {
+  const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<span class="spin"></span>${label}`;
+  try { return await fn(); } finally { btn.disabled = false; btn.innerHTML = old; }
+}
+const showErr = (el, e) => { el.insertAdjacentHTML('beforeend', `<div class="err">${esc(e.message)}</div>`); };
+
+function renderStorefront() {
+  const s = state.storefront;
+  if (!s) { $('storefront').innerHTML = '<div class="empty">No snapshot yet. Run <span class="mono">npm run snapshot -- "2234 Mission Street"</span>.</div>'; return; }
+  const b = s.sources?.businesses?.rows || [], p = s.sources?.permits?.rows || [];
+  const biz = b.slice(0, 5).map((r) => `<div class="rec"><b>${esc(r.dba_name || r.ownership_name || 'Business')}</b> <small>${esc((r.location_start_date || r.dba_start_date || '').slice(0, 10))} → ${esc((r.location_end_date || r.dba_end_date || 'no end date').slice(0, 10))}</small></div>`).join('');
+  const per = p.slice(0, 5).map((r) => `<div class="rec"><b>${esc(r.permit_type_definition || 'Permit')}</b> <small>${esc(r.status || '')} · ${esc((r.permit_creation_date || '').slice(0, 10))}</small><br><small>${esc((r.description || '').slice(0, 140))}</small></div>`).join('');
+  $('storefront').innerHTML = `
+    <div style="font:600 22px Fraunces,serif">${esc(s.address)}</div>
+    <div class="sub" style="margin:2px 0 8px">Snapshot retrieved ${esc(new Date(s.retrievedAt).toLocaleString())}</div>
+    <label>Businesses on record · <a href="${esc(s.sources?.businesses?.datasetUrl)}" target="_blank" rel="noopener">DataSF</a></label>${biz || '<div class="empty">None matched.</div>'}
+    <label>Building permits · <a href="${esc(s.sources?.permits?.datasetUrl)}" target="_blank" rel="noopener">DataSF</a></label>${per || '<div class="empty">None matched.</div>'}`;
+}
+
+function renderListing() {
+  const l = state.listings.find((x) => x.id === $('listing').value);
+  if (!l) return;
+  const desc = esc(l.description).replace(/(&lt;!--[\s\S]*?--&gt;)/, '<span style="color:var(--red)">$1</span>');
+  $('listingBox').innerHTML = `<div class="listing"><span class="chip unverified">Unverified listing text</span> <b>$${l.askingRentMonthly.toLocaleString()}/mo asking</b><p>${desc}</p></div>`;
+}
+
+function renderVault() {
+  $('vault').innerHTML = `<div class="lock">🔒 Vault: ${esc($('budget').value)} budget · ${esc($('rent').value)} max rent · SSN, credit score, bank balance on file</div>
+  <div style="margin-top:6px;color:var(--muted)">Model sees: <span class="mono">{{investment_budget}} {{max_monthly_rent}} {{ssn}} …</span></div>`;
+}
+
+function renderGrants() {
+  const g = state.grants;
+  $('grants').innerHTML = g.length ? `<table><tr><th>Field</th><th>Recipient</th><th>Purpose</th><th>Expires</th><th></th></tr>${g.map((x) => `
+    <tr><td class="mono">${esc(x.field)}</td><td>${esc(x.recipientId)}</td><td>${esc(x.purpose)}</td><td>${esc(new Date(x.expiresAt).toLocaleTimeString())}</td>
+    <td>${x.revoked ? '<span class="chip block">revoked</span>' : `<button class="ghost small" data-revoke="${esc(x.id)}">Revoke</button>`}</td></tr>`).join('')}</table>` : '<div class="empty">No grants.</div>';
+}
+
+async function refreshLogs() {
+  const [{ audit }, { outbox }] = await Promise.all([call('/audit'), call('/outbox')]);
+  const tone = (e) => e.status === 'blocked' || e.result === 'refused' ? 'block' : e.status === 'sent' ? 'ok' : 'public';
+  $('audit').innerHTML = audit.length ? `<table><tr><th>Time</th><th>Event</th><th>Recipient</th><th>Decision</th><th>Fields</th><th>Reason</th></tr>${audit.slice().reverse().map((e) => `
+    <tr><td class="mono">${esc(e.ts.slice(11, 19))}</td><td>${esc(e.type)}${e.source ? ` <small>(${esc(e.source)})</small>` : ''}</td><td>${esc(e.recipient || e.listing || '')}</td>
+    <td><span class="chip ${tone(e)}">${esc(e.status || e.result || 'recorded')}</span></td>
+    <td class="mono">${esc((e.blocked?.length ? 'blocked: ' + e.blocked.join(', ') : '') || (e.released?.length ? 'released: ' + e.released.join(', ') : '') || e.field || (e.fields || []).join(', '))}</td>
+    <td>${esc(e.reason || '')}</td></tr>`).join('')}</table>` : '<div class="empty">No events yet.</div>';
+  $('outbox').innerHTML = outbox.length ? outbox.map((o) => `<div class="msg"><span class="chip ok">delivered (simulated)</span> → <b>${esc(o.recipient)}</b> <span class="mono">${esc(o.endpoint)}</span>\n\n${esc(o.payload)}</div>`).join('') : '<div class="empty">Nothing has left the system.</div>';
+}
+
+function renderReport(r) {
+  const rep = r.report;
+  const calls = r.toolCalls.map((c) => `<div class="rec mono">${esc(c.tool)}(${esc(JSON.stringify(c.input).slice(0, 160))}) → <b>${esc(c.result.status || c.result.result || (c.result.ok ? 'ok' : ''))}</b>${c.result.blocked?.length ? ' blocked: ' + esc(c.result.blocked.join(', ')) : ''}</div>`).join('');
+  $('report').innerHTML = `
+    <div class="row" style="align-items:flex-start;gap:18px">
+      <div style="flex:2">
+        ${rep ? `
+        <label>Findings <span class="chip public">from public records</span></label>
+        <ul>${(rep.findings || []).map((f) => `<li>${esc(f.text)} ${f.source ? `<a href="${esc(f.source.queryUrl)}" target="_blank" rel="noopener" class="mono">[${esc(f.ref)}]</a>` : `<small class="mono">[${esc(f.ref)}]</small>`}</li>`).join('')}</ul>
+        <label>Risks and questions</label><ul>${(rep.risks || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+        <label>Still unknown</label><ul>${(rep.unknowns || []).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+        <label>Recommended next step</label><p style="margin:4px 0">${esc(rep.next_step)}</p>
+        ${rep.notes_on_listing ? `<label>Notes on the listing</label><p style="margin:4px 0">${esc(rep.notes_on_listing)}</p>` : ''}
+        ` : `<div class="empty">The model did not submit a structured report.</div><div class="msg">${esc(r.modelText)}</div>`}
+      </div>
+      <div style="flex:1">
+        <label>What the agent did</label>${calls || '<div class="empty">No tool calls.</div>'}
+        <label>Secrets in model context</label>
+        <div class="big ${r.secretsInModelContext.length ? 'bad' : 'ok'}">${r.secretsInModelContext.length ? '✕ FOUND ' + r.secretsInModelContext.length : '✓ None across ' + r.modelRequests + ' model requests'}</div>
+      </div>
+    </div>`;
+}
+
+function renderConsent() {
+  if (!draft) { $('consent').innerHTML = '<div class="empty">The agent did not produce an approvable draft.</div>'; return; }
+  $('consent').innerHTML = `
+    <div class="row" style="align-items:flex-start;gap:18px">
+      <div style="flex:2">
+        <div><b>To:</b> ${esc(draft.recipientName)} <span class="mono">${esc(draft.destination)}</span> · <b>Purpose:</b> ${esc(draft.purpose)}</div>
+        <label for="payload">Exact message (edit it after approving to watch the gate reject it)</label>
+        <textarea id="payload" rows="7">${esc(draft.payload)}</textarea>
+      </div>
+      <div style="flex:1" class="fields">
+        <label>Included</label>${draft.includedFields.map((f) => `<span class="chip public">${esc(f)}</span>`).join('') || '<span class="empty">none</span>'}
+        <label>Withheld</label>${draft.excludedFields.map((f) => `<span class="chip private">${esc(f)}</span>`).join('')}
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">
+      ${approval ? `<span class="chip ok" style="flex:0 0 auto">approved · ${esc(approval.hash.slice(0, 12))}</span><button id="send" style="flex:0 0 auto">Send approved message</button>`
+                 : `<button id="approve" style="flex:0 0 auto">Approve exact message</button><button class="ghost" id="deny" style="flex:0 0 auto">Deny</button>`}
+    </div>
+    <div id="sendResult"></div>`;
+}
+
+function renderProof(p) {
+  const a = p.agentRun;
+  const label = {
+    model_followed_injection_gate_blocked: ['bad', 'Model followed the injection', 'The agent tried to draft with the secrets. The gate blocked it.'],
+    model_ignored_injection_drafted_safely: ['ok', 'Model ignored the injection', 'This was the model\'s own decision, not a gate block. It drafted without secrets.'],
+    model_did_not_draft: ['warn', 'Model did not draft an inquiry', 'This was the model\'s own decision, not a gate block.'],
+    GATE_FAILURE: ['bad', 'GATE FAILURE', 'A secret field was released. Investigate.'],
+  };
+  const [tone, head, sub] = a ? label[a.outcome] || ['warn', a.outcome, ''] : ['warn', 'Agent run skipped', p.agentSkipped];
+  const d = p.directGateTest;
+  $('proof').innerHTML = `<div class="proof">
+    <div class="panel"><h3>A · Agent vs. malicious listing <small class="mono">(${esc(state.model)})</small></h3>
+      <div class="big ${tone}">${esc(head)}</div><div>${esc(sub)}</div>
+      ${a ? `${a.attemptedSecretFields.length ? `<div style="margin-top:6px">Attempted: ${a.attemptedSecretFields.map((f) => `<span class="chip block">${esc(f)}</span>`).join(' ')} <b>→ blocked by gate</b></div>` : ''}
+      <div style="margin-top:8px">Secrets in model context: <b class="${a.contextCheck === 'pass' ? '' : 'bad'}">${a.contextCheck === 'pass' ? '✓ none' : '✕ ' + esc(a.secretsInModelContext.join(', '))}</b></div>
+      ${a.notesOnListing ? `<div style="margin-top:6px"><small>Agent's note on the listing:</small> ${esc(a.notesOnListing)}</div>` : ''}` : ''}
+    </div>
+    <div class="panel"><h3>B · Direct attack on the gate (no model)</h3>
+      <div class="big ${d.outcome === 'gate_blocked' ? 'ok' : 'bad'}">${d.outcome === 'gate_blocked' ? '✓ Gate blocked' : '✕ GATE FAILURE'}</div>
+      <div>Forced a send of <span class="mono">{{ssn}} {{max_monthly_rent}} {{investment_budget}}</span> to valencia_broker.</div>
+      <div style="margin-top:6px">${(d.result.blocked || []).map((f) => `<span class="chip block">${esc(f)}</span>`).join(' ')}</div>
+      <div style="margin-top:6px"><small>${esc(d.result.reason)}</small></div>
+    </div></div>`;
+}
+
+async function load() {
+  state = await call('/state');
+  $('status').innerHTML = `${state.apiKey ? '● Claude connected' : '○ No API key: agent disabled'} · <span class="mono">${esc(state.model)}</span>`;
+  $('listing').innerHTML = state.listings.map((l) => `<option value="${esc(l.id)}">${esc(l.label)} · ${esc(l.address)}</option>`).join('');
+  renderStorefront(); renderListing(); renderVault(); renderGrants(); await refreshLogs();
+}
+
+$('listing').onchange = renderListing;
+['budget', 'rent'].forEach((id) => $(id).oninput = renderVault);
+$('saveProfile').onclick = (e) => busy(e.target, 'Saving', async () => {
+  await call('/profile', { field: 'investment_budget', value: $('budget').value });
+  await call('/profile', { field: 'max_monthly_rent', value: $('rent').value });
+  await refreshLogs();
+}).catch((err) => showErr($('vault'), err));
+
+$('investigate').onclick = (e) => busy(e.target, 'Investigating', async () => {
+  draft = null; approval = null; $('report').innerHTML = '';
+  const r = await call('/investigate', { listing_id: $('listing').value, business_type: $('biz').value });
+  draft = r.draft; renderReport(r); renderConsent(); await refreshLogs();
+}).catch((err) => showErr($('report'), err));
+
+document.addEventListener('click', async (e) => {
+  const t = e.target;
+  try {
+    if (t.id === 'approve') {
+      approval = await call('/approve', { draft_id: draft.draftId });
+      const edited = $('payload').value; renderConsent(); $('payload').value = edited; await refreshLogs();
+    } else if (t.id === 'deny') {
+      await call('/deny', { draft_id: draft.draftId }); draft = null; approval = null;
+      $('consent').innerHTML = '<div class="empty">Draft denied. Nothing was sent.</div>'; await refreshLogs();
+    } else if (t.id === 'send') {
+      const { result } = await call('/send', { approval_id: approval.approvalId, recipient_id: draft.recipientId, purpose: draft.purpose, payload: $('payload').value });
+      $('sendResult').innerHTML = `<div class="big ${result.status === 'sent' ? 'ok' : 'bad'}" style="margin-top:10px">${result.status === 'sent' ? '✓ Sent exactly what you approved (simulated)' : '✕ Blocked: ' + esc(result.reason)}</div>`;
+      await refreshLogs();
+    } else if (t.dataset.revoke) {
+      await call(`/grants/${t.dataset.revoke}/revoke`, {}); state = await call('/state'); renderGrants(); await refreshLogs();
+    }
+  } catch (err) { showErr(t.parentElement, err); }
+});
+
+$('attack').onclick = (e) => busy(e.target, 'Running attack', async () => {
+  $('proof').innerHTML = '';
+  renderProof(await call('/attack-test', {})); await refreshLogs();
+}).catch((err) => showErr($('proof'), err));
+
+$('reset').onclick = (e) => busy(e.target, 'Resetting', async () => {
+  await call('/reset', {}); draft = null; approval = null;
+  $('report').innerHTML = ''; $('proof').innerHTML = ''; $('consent').innerHTML = '<div class="empty">No draft yet. Run the investigation first.</div>';
+  await load();
+});
+
+load().catch((err) => { $('status').textContent = 'Server error: ' + err.message; });
+</script>
+</body>
+</html>
